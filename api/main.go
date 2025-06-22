@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
 	"go-todo/controllers"
 	db "go-todo/db/sqlc"
+	"go-todo/middleware"
 	"go-todo/routes"
 	"go-todo/util"
 
@@ -43,6 +45,21 @@ func main() {
     userRoutes := routes.NewRouteUser(userController)
 
     router := gin.Default()
+
+    router.Use(gin.LoggerWithFormatter(func(param gin.LogFormatterParams) string {
+            return fmt.Sprintf("%s - [%s] \"%s %s %s %d \"%s\" %s\"\n",
+        param.ClientIP,
+        param.TimeStamp.Format(time.RFC1123),
+        param.Method,
+        param.Path,
+        param.Request.Proto,
+        param.StatusCode,
+        param.Request.UserAgent(),
+        param.ErrorMessage,
+    )
+    }))
+    router.Use(middleware.Logger())
+    
     {
         v1 := router.Group("/api/v1")
         statusRoutes.StatusRoute(v1)
