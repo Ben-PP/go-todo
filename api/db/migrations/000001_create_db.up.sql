@@ -6,9 +6,28 @@ CREATE TABLE IF NOT EXISTS users(
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS lists(
+    id SERIAL PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS list_shares(
+    list_id INTEGER NOT NULL,
+    user_id TEXT NOT NULL,
+    PRIMARY KEY (list_id, user_id),
+    FOREIGN KEY (list_id) REFERENCES lists(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS todos(
     id SERIAL PRIMARY KEY,
     parent_id INTEGER,
+    list_id INTEGER NOT NULL,
     user_id TEXT NOT NULL,
     title TEXT NOT NULL,
     description TEXT,
@@ -18,5 +37,6 @@ CREATE TABLE IF NOT EXISTS todos(
     complete_before TIMESTAMP,
     completed_at TIMESTAMP,
     FOREIGN KEY (parent_id) REFERENCES todos(id) ON DELETE CASCADE,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (list_id) REFERENCES lists(id) ON DELETE CASCADE
 );
