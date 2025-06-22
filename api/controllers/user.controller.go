@@ -5,6 +5,7 @@ import (
 	"errors"
 	db "go-todo/db/sqlc"
 	"go-todo/schemas"
+	"go-todo/util"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -26,17 +27,25 @@ func (uc *UserController) CreateUser(ctx *gin.Context) {
 	if err := ctx.ShouldBindJSON(&payload); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{
 			"status": "Malformed body",
-			"error": err.Error(),
+			"detail": err.Error(),
 		})
 		return
 	}
 
 	userUUID := uuid.New()
+	passwd := payload.Password
+	passwdHash,err := util.HashPasword(passwd)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"status": "unable-to-hash-password",
+			"detail": err,
+		})
+	}
 
 	args := &db.CreateUserParams{
 		ID: userUUID.String(),
 		Username: payload.Username,
-		PasswordHash: payload.Password,
+		PasswordHash: passwdHash,
 		IsAdmin: true,
 	}
 
@@ -53,14 +62,14 @@ func (uc *UserController) CreateUser(ctx *gin.Context) {
 			default:
 				ctx.JSON(http.StatusInternalServerError, gin.H{
 					"status": "unable-to-create-user",
-					"error": pgErr.Error(),
+					"detail": pgErr.Error(),
 				})
 			}
 			return
 		}
 		ctx.JSON(http.StatusInternalServerError, gin.H{
 			"status": "unable-to-create-user",
-			"error": err.Error(),
+			"detail": err.Error(),
 		})
 		return
 	}
