@@ -1,21 +1,23 @@
 package util
 
-import "github.com/spf13/viper"
+import (
+	"os"
+
+	"github.com/spf13/viper"
+)
 
 type Config struct {
-    DbDriver         string `mapstructure:"DB_DRIVER"`
     DbUrl         string `mapstructure:"DB_URL"`
-    PostgresUser     string `mapstructure:"POSTGRES_USER"`
-    PostgresPassword string `mapstructure:"POSTGRES_PASSWORD"`
-    PostgresDb       string `mapstructure:"POSTGRES_DB"`
-    ServerAddress    string `mapstructure:"SERVER_ADDRESS"`
 }
 
 func LoadConfig(path string) (config Config, err error) {
     viper.AddConfigPath(path)
-	// TODO Choose programmatically the env to load
-    viper.SetConfigName("dev")
-    viper.SetConfigType("env")
+
+    if os.Getenv("GO_ENV") == "dev" {
+        viper.SetConfigName("dev")
+    } else {
+        viper.SetConfigType("env")
+    }
 
     viper.AutomaticEnv()
 
