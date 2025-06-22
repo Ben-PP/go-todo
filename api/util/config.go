@@ -7,7 +7,10 @@ import (
 )
 
 type Config struct {
-    DbUrl         string `mapstructure:"DB_URL"`
+    DbUrl                   string  `mapstructure:"DB_URL"`
+    AuthTokenLifeSpan       int     `mapstructure:"AUTH_TOKEN_LIFE_SPAN"`
+    RefreshTokenLifeSpan    int     `mapstructure:"REFRESH_TOKEN_LIFE_SPAN"`
+    JwtSecret               string  `mapstructure:"JWT_SECRET"`
 }
 
 func LoadConfig(path string) (config Config, err error) {
@@ -16,8 +19,9 @@ func LoadConfig(path string) (config Config, err error) {
     if os.Getenv("GO_ENV") == "dev" {
         viper.SetConfigName("dev")
     } else {
-        viper.SetConfigType("env")
+        viper.SetConfigName("prod")
     }
+    viper.SetConfigType("env")
 
     viper.AutomaticEnv()
 

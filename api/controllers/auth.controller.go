@@ -32,7 +32,7 @@ func (ac *AuthController) Login(ctx *gin.Context) {
 	username := payload.Username
 	password := payload.Password
 
-	hash, err := ac.db.GetPasswordHashByUsername(ctx, username)
+	user, err := ac.db.GetUserByUsername(ctx, username)
 	if err != nil {
 		ctx.JSON(http.StatusUnauthorized, gin.H{
 			"status": "invalid-credentials",
@@ -41,13 +41,24 @@ func (ac *AuthController) Login(ctx *gin.Context) {
 		return
 	}
 
-	if pwdCorrect := util.CheckPasswordHash(password, hash); !pwdCorrect {
+	if pwdCorrect := util.VerifyPassword(password, user.PasswordHash); !pwdCorrect {
 		ctx.JSON(http.StatusUnauthorized, gin.H{
 			"status": "invalid-credentials",
 		})
 		return
 	}
+
+	token, err := util.GenerateToken(user)
+	if err != nil {
+		ctx.JSON(http.StatusUnauthorized, gin.H{
+			"status": "invalid-credentials",
+			"detail": err.Error(),
+		})
+		return
+	}
+
 	ctx.JSON(http.StatusOK, gin.H{
-		"status": "credentials-ok",
+		"status": "ok",
+		"auth_token": token,
 	})
 }
