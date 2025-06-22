@@ -39,6 +39,8 @@ func main() {
 
     mydb := db.New(conn)
 
+    authController := controllers.NewAuthController(mydb, ctx)
+    authRoutes := routes.NewRouteAuth(authController)
     statusController := controllers.NewStatusController(mydb, ctx)
     statusRoutes := routes.NewRouteStatus(statusController)
     userController := controllers.NewUserController(mydb, ctx)
@@ -62,6 +64,7 @@ func main() {
     
     {
         v1 := router.Group("/api/v1")
+        authRoutes.UserRoute(v1)
         statusRoutes.StatusRoute(v1)
         userRoutes.UserRoute(v1)    
     }

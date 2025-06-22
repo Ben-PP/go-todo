@@ -21,3 +21,8 @@ RETURNING id, username, is_admin, created_at;
 -- name: DeleteUser :exec
 DELETE FROM users
 WHERE id = $1;
+
+-- name: GetPasswordHashByUsername :one
+SELECT password_hash
+FROM users
+WHERE username = $1;

@@ -26,13 +26,14 @@ func (uc *UserController) CreateUser(ctx *gin.Context) {
 	var payload *schemas.CreateUser
 	if err := ctx.ShouldBindJSON(&payload); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{
-			"status": "Malformed body",
+			"status": "malformed-body",
 			"detail": err.Error(),
 		})
 		return
 	}
 
 	userUUID := uuid.New()
+	// TODO Check password requirements
 	passwd := payload.Password
 	passwdHash,err := util.HashPasword(passwd)
 	if err != nil {

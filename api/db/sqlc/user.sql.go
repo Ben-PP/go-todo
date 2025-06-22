@@ -95,6 +95,19 @@ func (q *Queries) GetAllUsers(ctx context.Context) ([]GetAllUsersRow, error) {
 	return items, nil
 }
 
+const getPasswordHashByUsername = `-- name: GetPasswordHashByUsername :one
+SELECT password_hash
+FROM users
+WHERE username = $1
+`
+
+func (q *Queries) GetPasswordHashByUsername(ctx context.Context, username string) (string, error) {
+	row := q.db.QueryRow(ctx, getPasswordHashByUsername, username)
+	var password_hash string
+	err := row.Scan(&password_hash)
+	return password_hash, err
+}
+
 const getUserById = `-- name: GetUserById :one
 SELECT id, username, is_admin, created_at
 FROM users
