@@ -48,7 +48,15 @@ func (ac *AuthController) Login(ctx *gin.Context) {
 		return
 	}
 
-	token, err := util.GenerateToken(user)
+	accessToken, err := util.GenerateAccessToken(user)
+	if err != nil {
+		ctx.JSON(http.StatusUnauthorized, gin.H{
+			"status": "invalid-credentials",
+			"detail": err.Error(),
+		})
+		return
+	}
+	refreshToken, err := util.GenerateRefreshToken(user)
 	if err != nil {
 		ctx.JSON(http.StatusUnauthorized, gin.H{
 			"status": "invalid-credentials",
@@ -59,6 +67,7 @@ func (ac *AuthController) Login(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusOK, gin.H{
 		"status": "ok",
-		"auth_token": token,
+		"access_token": accessToken,
+		"refresh_token": refreshToken,
 	})
 }
