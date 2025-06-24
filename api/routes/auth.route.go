@@ -17,5 +17,6 @@ func NewRouteAuth(authController *controllers.AuthController) *AuthRoutes {
 func (ar *AuthRoutes) UserRoute(rg *gin.RouterGroup) {
 	router := rg.Group("/auth")
 	router.POST("/login", ar.authController.Login)
+	router.POST("/logout", ar.authController.Logout)
 	router.POST("/refresh", ar.authController.Refresh)
 }
