@@ -8,9 +8,10 @@ import (
 
 type Config struct {
     DbUrl                   string  `mapstructure:"DB_URL"`
-    AccessTokenLifeSpan       int     `mapstructure:"AUTH_TOKEN_LIFE_SPAN"`
+    AccessTokenLifeSpan     int     `mapstructure:"ACCESS_TOKEN_LIFE_SPAN"`
     RefreshTokenLifeSpan    int     `mapstructure:"REFRESH_TOKEN_LIFE_SPAN"`
-    JwtSecret               string  `mapstructure:"JWT_SECRET"`
+    JwtAccessSecret         string  `mapstructure:"JWT_ACCESS_SECRET"`
+    JwtRefreshSecret        string  `mapstructure:"JWT_REFRESH_SECRET"`
 }
 
 func LoadConfig(path string) (config Config, err error) {

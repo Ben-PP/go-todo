@@ -1,7 +1,6 @@
 package util
 
 import (
-	db "go-todo/db/sqlc"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -11,44 +10,88 @@ import (
 type MyCustomClaims struct {
 	IsAdmin bool `json:"is_admin"`
 	UserName string `json:"username"`
+	Family string `json:"family"`
 	jwt.RegisteredClaims
 }
 
-func generateToken(user db.User, isRefreshToken bool) (string, error) {
+func generateToken(username string, userID string, isAdmin bool, isRefreshToken bool, family string) (string, MyCustomClaims, error) {
 	config, err := LoadConfig(".")
 	if err != nil {
-		return "", err
+		return "", MyCustomClaims{}, err
 	}
 	
 	authLifeSpan := config.AccessTokenLifeSpan
 	if isRefreshToken {
 		authLifeSpan = config.RefreshTokenLifeSpan
 	}
-
+	lifeSpanDuration := time.Minute * time.Duration(authLifeSpan)
+	timeNow := time.Now().UTC()
+	expiry := jwt.NewNumericDate(timeNow.Add(lifeSpanDuration))	
+	if family == "" && isRefreshToken {
+		family = uuid.New().String()
+	} else if !isRefreshToken {
+		family = "access"
+	}
 	claims := MyCustomClaims{
-		user.IsAdmin,
-		user.Username,
+		isAdmin,
+		username,
+		family,
 		jwt.RegisteredClaims{
 			ID: uuid.New().String(),
-			Subject: user.ID,
-			ExpiresAt: jwt.NewNumericDate(
-				time.Now().Add(
-					time.Minute * time.Duration(authLifeSpan),
-				),
-			),
+			Subject: userID,
+			ExpiresAt: expiry,
 			Issuer: "GO-TODO",
+			IssuedAt: jwt.NewNumericDate(timeNow),
 
 		},
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS512, claims)
 
-	return token.SignedString([]byte(config.JwtSecret))
+	secret := config.JwtAccessSecret
+	if isRefreshToken {
+		secret = config.JwtRefreshSecret
+	}
+	encodedToken, err := token.SignedString([]byte(secret))
+	if err != nil {
+		return "", MyCustomClaims{}, err
+	}
+	return encodedToken, claims, nil
 }
 
-func GenerateAccessToken(user db.User) (string, error) {
-	return generateToken(user, false)
+func GenerateAccessToken(username string, userID string, isAdmin bool) (string, MyCustomClaims, error) {
+	return generateToken(username, userID, isAdmin, false, "")
 }
 
-func GenerateRefreshToken(user db.User) (string, error) {
-	return generateToken(user, true)
+func GenerateRefreshToken(username string, userID string, isAdmin bool, tokenFamily string) (string, MyCustomClaims, error) {
+	return generateToken(username, userID, isAdmin, true, tokenFamily)
+}
+
+func decodeToken(tokenString string, isRefreshToken bool) (MyCustomClaims, error) {
+	config, err := LoadConfig(".")
+	if err != nil {
+		return MyCustomClaims{}, err
+	}
+
+	secret := config.JwtAccessSecret
+	if isRefreshToken {
+		secret = config.JwtRefreshSecret
+	}
+	decodedToken, err := jwt.ParseWithClaims(tokenString, &MyCustomClaims{}, func(token *jwt.Token)(any, error){
+		return []byte(secret), nil
+	})
+	if err != nil {
+		return MyCustomClaims{}, err
+	} else if claims, ok := decodedToken.Claims.(*MyCustomClaims); ok {
+		return *claims, nil
+	} else {
+		return MyCustomClaims{}, err
+	}
+}
+
+func DecodeAccessToken(tokenString string) (MyCustomClaims, error) {
+	return decodeToken(tokenString, false)
+}
+
+func DecodeRefreshToken(tokenString string) (MyCustomClaims, error) {
+	return decodeToken(tokenString, true)
 }

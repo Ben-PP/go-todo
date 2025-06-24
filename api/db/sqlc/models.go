@@ -8,6 +8,15 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type JwtToken struct {
+	Jti       string           `json:"jti"`
+	Family    string           `json:"family"`
+	UserID    string           `json:"user_id"`
+	IsUsed    bool             `json:"is_used"`
+	CreatedAt pgtype.Timestamp `json:"created_at"`
+	ExpiresAt pgtype.Timestamp `json:"expires_at"`
+}
+
 type List struct {
 	ID          int32            `json:"id"`
 	UserID      string           `json:"user_id"`
