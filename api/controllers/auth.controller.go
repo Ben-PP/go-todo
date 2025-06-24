@@ -34,6 +34,7 @@ func (ac *AuthController) Refresh(ctx *gin.Context) {
 			"status": "malformed-body",
 			"detail": err.Error(),
 		})
+		return
 	}
 
 	refreshToken := payload.RefreshToken
@@ -189,6 +190,7 @@ func (ac *AuthController) Logout(ctx *gin.Context) {
 			"status": "malformed-body",
 			"detail": err.Error(),
 		})
+		return
 	}
 
 	refreshToken := payload.RefreshToken

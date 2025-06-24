@@ -1,6 +1,7 @@
 package util
 
 import (
+	"errors"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -14,8 +15,23 @@ type MyCustomClaims struct {
 	jwt.RegisteredClaims
 }
 
+var globalConfig *Config
+
+func getConfig() (*Config, error) {
+	if globalConfig == nil {
+		var err error
+		config, err := LoadConfig(".")
+		if err != nil {
+			return nil, err
+		}
+		globalConfig = &config
+	}
+
+	return globalConfig, nil
+}
+
 func generateToken(username string, userID string, isAdmin bool, isRefreshToken bool, family string) (string, MyCustomClaims, error) {
-	config, err := LoadConfig(".")
+	config, err := getConfig()
 	if err != nil {
 		return "", MyCustomClaims{}, err
 	}
@@ -67,7 +83,7 @@ func GenerateRefreshToken(username string, userID string, isAdmin bool, tokenFam
 }
 
 func decodeToken(tokenString string, isRefreshToken bool) (MyCustomClaims, error) {
-	config, err := LoadConfig(".")
+	config, err := getConfig()
 	if err != nil {
 		return MyCustomClaims{}, err
 	}
@@ -84,7 +100,7 @@ func decodeToken(tokenString string, isRefreshToken bool) (MyCustomClaims, error
 	} else if claims, ok := decodedToken.Claims.(*MyCustomClaims); ok {
 		return *claims, nil
 	} else {
-		return MyCustomClaims{}, err
+		return MyCustomClaims{}, errors.New("something went wrong decoding token")
 	}
 }
 

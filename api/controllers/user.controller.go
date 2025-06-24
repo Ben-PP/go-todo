@@ -35,12 +35,13 @@ func (uc *UserController) CreateUser(ctx *gin.Context) {
 	userUUID := uuid.New()
 	// TODO Check password requirements
 	passwd := payload.Password
-	passwdHash,err := util.HashPasword(passwd)
+	passwdHash,err := util.HashPassword(passwd)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{
 			"status": "unable-to-hash-password",
-			"detail": err,
+			"detail": err.Error(),
 		})
+		return
 	}
 
 	args := &db.CreateUserParams{
