@@ -96,24 +96,37 @@ func (q *Queries) GetAllUsers(ctx context.Context) ([]GetAllUsersRow, error) {
 }
 
 const getUserById = `-- name: GetUserById :one
-SELECT id, username, is_admin, created_at
+SELECT id, username, password_hash, is_admin, created_at
 FROM users
 WHERE id = $1
 `
 
-type GetUserByIdRow struct {
-	ID        string           `json:"id"`
-	Username  string           `json:"username"`
-	IsAdmin   bool             `json:"is_admin"`
-	CreatedAt pgtype.Timestamp `json:"created_at"`
-}
-
-func (q *Queries) GetUserById(ctx context.Context, id string) (GetUserByIdRow, error) {
+func (q *Queries) GetUserById(ctx context.Context, id string) (User, error) {
 	row := q.db.QueryRow(ctx, getUserById, id)
-	var i GetUserByIdRow
+	var i User
 	err := row.Scan(
 		&i.ID,
 		&i.Username,
+		&i.PasswordHash,
+		&i.IsAdmin,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getUserByUsername = `-- name: GetUserByUsername :one
+SELECT id, username, password_hash, is_admin, created_at
+FROM users
+WHERE username = $1
+`
+
+func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User, error) {
+	row := q.db.QueryRow(ctx, getUserByUsername, username)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.PasswordHash,
 		&i.IsAdmin,
 		&i.CreatedAt,
 	)

@@ -1,0 +1,97 @@
+package util
+
+import (
+	"time"
+
+	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
+)
+
+type MyCustomClaims struct {
+	IsAdmin bool `json:"is_admin"`
+	UserName string `json:"username"`
+	Family string `json:"family"`
+	jwt.RegisteredClaims
+}
+
+func generateToken(username string, userID string, isAdmin bool, isRefreshToken bool, family string) (string, MyCustomClaims, error) {
+	config, err := LoadConfig(".")
+	if err != nil {
+		return "", MyCustomClaims{}, err
+	}
+	
+	authLifeSpan := config.AccessTokenLifeSpan
+	if isRefreshToken {
+		authLifeSpan = config.RefreshTokenLifeSpan
+	}
+	lifeSpanDuration := time.Minute * time.Duration(authLifeSpan)
+	timeNow := time.Now().UTC()
+	expiry := jwt.NewNumericDate(timeNow.Add(lifeSpanDuration))	
+	if family == "" && isRefreshToken {
+		family = uuid.New().String()
+	} else if !isRefreshToken {
+		family = "access"
+	}
+	claims := MyCustomClaims{
+		isAdmin,
+		username,
+		family,
+		jwt.RegisteredClaims{
+			ID: uuid.New().String(),
+			Subject: userID,
+			ExpiresAt: expiry,
+			Issuer: "GO-TODO",
+			IssuedAt: jwt.NewNumericDate(timeNow),
+
+		},
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS512, claims)
+
+	secret := config.JwtAccessSecret
+	if isRefreshToken {
+		secret = config.JwtRefreshSecret
+	}
+	encodedToken, err := token.SignedString([]byte(secret))
+	if err != nil {
+		return "", MyCustomClaims{}, err
+	}
+	return encodedToken, claims, nil
+}
+
+func GenerateAccessToken(username string, userID string, isAdmin bool) (string, MyCustomClaims, error) {
+	return generateToken(username, userID, isAdmin, false, "")
+}
+
+func GenerateRefreshToken(username string, userID string, isAdmin bool, tokenFamily string) (string, MyCustomClaims, error) {
+	return generateToken(username, userID, isAdmin, true, tokenFamily)
+}
+
+func decodeToken(tokenString string, isRefreshToken bool) (MyCustomClaims, error) {
+	config, err := LoadConfig(".")
+	if err != nil {
+		return MyCustomClaims{}, err
+	}
+
+	secret := config.JwtAccessSecret
+	if isRefreshToken {
+		secret = config.JwtRefreshSecret
+	}
+	decodedToken, err := jwt.ParseWithClaims(tokenString, &MyCustomClaims{}, func(token *jwt.Token)(any, error){
+		return []byte(secret), nil
+	})
+	if err != nil {
+		return MyCustomClaims{}, err
+	} else if claims, ok := decodedToken.Claims.(*MyCustomClaims); ok {
+		return *claims, nil
+	} else {
+		return MyCustomClaims{}, err
+	}
+}
+
+func DecodeAccessToken(tokenString string) (MyCustomClaims, error) {
+	return decodeToken(tokenString, false)
+}
+
+func DecodeRefreshToken(tokenString string) (MyCustomClaims, error) {
+	return decodeToken(tokenString, true)
+}

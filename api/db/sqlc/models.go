@@ -8,9 +8,33 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type JwtToken struct {
+	Jti       string           `json:"jti"`
+	Family    string           `json:"family"`
+	UserID    string           `json:"user_id"`
+	IsUsed    bool             `json:"is_used"`
+	CreatedAt pgtype.Timestamp `json:"created_at"`
+	ExpiresAt pgtype.Timestamp `json:"expires_at"`
+}
+
+type List struct {
+	ID          int32            `json:"id"`
+	UserID      string           `json:"user_id"`
+	Title       string           `json:"title"`
+	Description pgtype.Text      `json:"description"`
+	CreatedAt   pgtype.Timestamp `json:"created_at"`
+	UpdatedAt   pgtype.Timestamp `json:"updated_at"`
+}
+
+type ListShare struct {
+	ListID int32  `json:"list_id"`
+	UserID string `json:"user_id"`
+}
+
 type Todo struct {
 	ID             int32            `json:"id"`
 	ParentID       pgtype.Int4      `json:"parent_id"`
+	ListID         int32            `json:"list_id"`
 	UserID         string           `json:"user_id"`
 	Title          string           `json:"title"`
 	Description    pgtype.Text      `json:"description"`
