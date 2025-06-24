@@ -7,6 +7,7 @@ SELECT *
 FROM jwt_tokens
 WHERE jti = $1;
 
+
 -- name: UseJwtToken :exec
 UPDATE jwt_tokens
 SET is_used = TRUE
@@ -15,3 +16,7 @@ WHERE jti = $1;
 -- name: DeleteJwtTokenByFamily :exec
 DELETE FROM jwt_tokens
 WHERE family = $1;
+
+-- name: DeleteJwtTokenByUserId :exec
+DELETE FROM jwt_tokens
+WHERE user_id = $1 AND family != $2;

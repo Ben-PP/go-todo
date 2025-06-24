@@ -212,3 +212,113 @@ func (ac *AuthController) Logout(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusNoContent, gin.H{})
 }
+
+func (ac *AuthController) UpdatePassword(ctx *gin.Context) {
+	userID := ctx.MustGet("x-token-user-id").(string)
+
+	var payload *schemas.UpdatePassword
+	if err := ctx.ShouldBindBodyWithJSON(&payload); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"status": "malformed-body",
+			"detail": err.Error(),
+		})
+		return
+	}
+	user, err := ac.db.GetUserById(ctx, userID)
+	if err != nil {
+		ctx.JSON(http.StatusUnauthorized, gin.H{
+			"status": "unauthorized",
+			"detail": "Tokens user does not exists.",
+		})
+		return
+	}
+
+	if !util.VerifyPassword(payload.OldPassword, user.PasswordHash) {
+		ctx.JSON(http.StatusUnauthorized, gin.H{
+			"status": "invalid-password",
+			"detail": "Old password does not match",
+		})
+		return
+	}
+
+	// TODO Validate new password
+
+	newPasswordHash, err := util.HashPassword(payload.NewPassword)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"status": "internal-server-error",
+		})
+		return
+	}
+
+	args := &db.UpdateUserPasswordParams{
+		PasswordHash: newPasswordHash,
+		ID: user.ID,
+	}
+
+	if err := ac.db.UpdateUserPassword(ctx, *args); err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"status": "internal-server-error",
+		})
+	}
+
+	accessToken, _, err := util.GenerateAccessToken(
+		user.Username,
+		user.ID,
+		user.IsAdmin,
+	)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"status": "internal-server-error",
+			"detail": err.Error(),
+		})
+		return
+	}
+	refreshToken, refreshClaims, err := util.GenerateRefreshToken(
+		user.Username,
+		user.ID,
+		user.IsAdmin,
+		"",
+	)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"status": "internal-server-error",
+			"detail": err.Error(),
+		})
+		return
+	}
+
+	refreshArgs := &db.CreateJwtTokenParams{
+		Jti: refreshClaims.ID,
+		UserID: refreshClaims.Subject,
+		Family: refreshClaims.Family,
+		CreatedAt: pgtype.Timestamp{Time: refreshClaims.IssuedAt.Time,Valid: true},
+		ExpiresAt: pgtype.Timestamp{Time: refreshClaims.ExpiresAt.Time, Valid: true},
+	}
+	
+	if err := ac.db.CreateJwtToken(ctx, *refreshArgs); err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"status": "internal-server-error",
+			"detail": err.Error(),
+		})
+		return
+	}
+
+	deleteArgs := &db.DeleteJwtTokenByUserIdParams{
+		UserID: userID,
+		Family: refreshClaims.Family,
+	}
+
+	if err := ac.db.DeleteJwtTokenByUserId(ctx, *deleteArgs); err != nil {
+		// TODO Log
+		// Running here might cause incomplete logout
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"status": "ok",
+		"access_token": accessToken,
+		"refresh_token": refreshToken,
+	})
+}
+
+// TODO Add ResetPassword (Requires email to be implemented)

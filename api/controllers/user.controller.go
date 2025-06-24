@@ -78,3 +78,6 @@ func (uc *UserController) CreateUser(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusCreated, gin.H{"status": "created", "user": user})
 }
+
+// TODO Add DeleteUser
+// TODO Add UpdateUser
