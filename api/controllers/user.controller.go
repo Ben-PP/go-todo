@@ -43,8 +43,16 @@ func (uc *UserController) CreateUser(ctx *gin.Context) {
 		return
 	}
 
+	isUsernameValid, err := util.ValidateUsername(payload.Username)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"status": "internal-server-error"})
+		return
+	} else if !isUsernameValid {
+		ctx.JSON(http.StatusBadRequest, gin.H{"status": "username-criteria-unmet"})
+		return
+	}
+
 	userUUID := uuid.New()
-	// TODO Check password requirements
 	passwd := payload.Password
 	passwdHash,err := util.HashPassword(passwd)
 	if err != nil {
@@ -118,6 +126,14 @@ func (uc *UserController) UpdateUser(ctx *gin.Context) {
 			"status": "malformed-body",
 			"detail": err.Error(),
 		})
+		return
+	}
+	isUsernameValid, err := util.ValidateUsername(payload.Username)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"status": "internal-server-error"})
+		return
+	} else if !isUsernameValid {
+		ctx.JSON(http.StatusBadRequest, gin.H{"status": "username-criteria-unmet"})
 		return
 	}
 

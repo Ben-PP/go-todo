@@ -24,3 +24,15 @@ func ValidatePassword(password string) (bool, error) {
 
 	return hasLetter && hasNumber && hasSpecialChar, nil
 }
+
+func ValidateUsername(username string) (bool, error) {
+	if length := len(username); length < 5 && length > 20 {
+		return false, nil
+	}
+	hasDisallowedChars, err := regexp.MatchString(`[^\p{L}\p{N}\s_-]`, username)
+	if err != nil {
+		return false, err
+	}
+
+	return hasDisallowedChars, nil
+}
