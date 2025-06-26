@@ -8,3 +8,8 @@ type Login struct {
 type Refresh struct {
 	RefreshToken string `json:"refresh_token" binding:"required"`
 }
+
+type UpdatePassword struct {
+	OldPassword string `json:"old_password" binding:"required"`
+	NewPassword string `json:"new_password" binding:"required"`
+}

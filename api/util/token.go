@@ -2,8 +2,10 @@ package util
 
 import (
 	"errors"
+	"strings"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 )
@@ -110,4 +112,19 @@ func DecodeAccessToken(tokenString string) (MyCustomClaims, error) {
 
 func DecodeRefreshToken(tokenString string) (MyCustomClaims, error) {
 	return decodeToken(tokenString, true)
+}
+
+func getTokenFromHeader(c *gin.Context) string {
+	bearerToken := c.Request.Header.Get("Authorization")
+
+	splitToken := strings.Split(bearerToken, " ")
+	if len(splitToken) == 2 {
+		return splitToken[1]
+	}
+	return ""
+}
+
+func DecodeTokenFromHeader(c *gin.Context) (MyCustomClaims, error) {
+	tokenString := getTokenFromHeader(c)
+	return DecodeAccessToken(tokenString)
 }

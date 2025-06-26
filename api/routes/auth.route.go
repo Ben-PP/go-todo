@@ -2,6 +2,7 @@ package routes
 
 import (
 	"go-todo/controllers"
+	"go-todo/middleware"
 
 	"github.com/gin-gonic/gin"
 )
@@ -19,4 +20,5 @@ func (ar *AuthRoutes) UserRoute(rg *gin.RouterGroup) {
 	router.POST("/login", ar.authController.Login)
 	router.POST("/logout", ar.authController.Logout)
 	router.POST("/refresh", ar.authController.Refresh)
+	router.POST("/update-password",middleware.JwtAuthMiddleware(), ar.authController.UpdatePassword)
 }

@@ -19,9 +19,14 @@ RETURNING id, username, is_admin, created_at;
 
 -- name: UpdateUser :one
 UPDATE users
-SET username = $2, password_hash = $3, is_admin = $4
+SET username = $2, is_admin = $3
 WHERE id = $1
 RETURNING id, username, is_admin, created_at;
+
+-- name: UpdateUserPassword :exec
+UPDATE users
+SET password_hash = $2
+WHERE id = $1;
 
 -- name: DeleteUser :exec
 DELETE FROM users

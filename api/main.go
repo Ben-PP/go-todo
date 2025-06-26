@@ -14,8 +14,6 @@ import (
 	"go-todo/routes"
 	"go-todo/util"
 
-	//"github.com/golang-jwt/jwt/v5"
-
 	"github.com/jackc/pgx/v5"
 )
 
@@ -33,6 +31,7 @@ func main() {
     conn, err := pgx.Connect(context.Background(), config.DbUrl)
     if err != nil {
         fmt.Println("Error connecting to database", err)
+        return
     }
 
     defer conn.Close(ctx)
@@ -48,6 +47,7 @@ func main() {
 
     router := gin.Default()
 
+    router.Use(middleware.Logger())
     router.Use(gin.LoggerWithFormatter(func(param gin.LogFormatterParams) string {
             return fmt.Sprintf("%s - [%s] \"%s %s %s %d \"%s\" %s\"\n",
         param.ClientIP,
@@ -60,7 +60,6 @@ func main() {
         param.ErrorMessage,
     )
     }))
-    router.Use(middleware.Logger())
     
     {
         v1 := router.Group("/api/v1")
