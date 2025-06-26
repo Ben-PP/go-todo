@@ -17,6 +17,10 @@ WHERE jti = $1;
 DELETE FROM jwt_tokens
 WHERE family = $1;
 
--- name: DeleteJwtTokenByUserId :exec
+-- name: DeleteJwtTokenByUserIdExcludeFamily :exec
 DELETE FROM jwt_tokens
 WHERE user_id = $1 AND family != $2;
+
+-- name: DeleteJwtTokensByUserId :exec
+DELETE FROM jwt_tokens
+WHERE user_id = $1;

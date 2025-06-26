@@ -59,6 +59,7 @@ func (ac *AuthController) Refresh(ctx *gin.Context) {
 		invalidTokenResponse(ctx)
 		return
 	}
+	// TODO Get user from db to check the user info
 
 	newRefreshToken, refreshClaims, err := util.GenerateRefreshToken(
 		decodedRefreshToken.UserName,
@@ -214,7 +215,11 @@ func (ac *AuthController) Logout(ctx *gin.Context) {
 }
 
 func (ac *AuthController) UpdatePassword(ctx *gin.Context) {
-	userID := ctx.MustGet("x-token-user-id").(string)
+	userID,_,_, err := util.GetTokenVariables(ctx)
+	if err != nil {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"status": "invalid-token"})
+		return
+	}
 
 	var payload *schemas.UpdatePassword
 	if err := ctx.ShouldBindBodyWithJSON(&payload); err != nil {
@@ -304,12 +309,12 @@ func (ac *AuthController) UpdatePassword(ctx *gin.Context) {
 		return
 	}
 
-	deleteArgs := &db.DeleteJwtTokenByUserIdParams{
+	deleteArgs := &db.DeleteJwtTokenByUserIdExcludeFamilyParams{
 		UserID: userID,
 		Family: refreshClaims.Family,
 	}
 
-	if err := ac.db.DeleteJwtTokenByUserId(ctx, *deleteArgs); err != nil {
+	if err := ac.db.DeleteJwtTokenByUserIdExcludeFamily(ctx, *deleteArgs); err != nil {
 		// TODO Log
 		// Running here might cause incomplete logout
 	}

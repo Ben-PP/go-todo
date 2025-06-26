@@ -14,8 +14,6 @@ import (
 	"go-todo/routes"
 	"go-todo/util"
 
-	//"github.com/golang-jwt/jwt/v5"
-
 	"github.com/jackc/pgx/v5"
 )
 
@@ -28,11 +26,13 @@ func main() {
     config, err := util.LoadConfig(".")
     if err != nil {
         log.Fatalf("failed to load config: %v", err)
+        return
     }
     
     conn, err := pgx.Connect(context.Background(), config.DbUrl)
     if err != nil {
         fmt.Println("Error connecting to database", err)
+        return
     }
 
     defer conn.Close(ctx)

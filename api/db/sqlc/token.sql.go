@@ -45,18 +45,28 @@ func (q *Queries) DeleteJwtTokenByFamily(ctx context.Context, family string) err
 	return err
 }
 
-const deleteJwtTokenByUserId = `-- name: DeleteJwtTokenByUserId :exec
+const deleteJwtTokenByUserIdExcludeFamily = `-- name: DeleteJwtTokenByUserIdExcludeFamily :exec
 DELETE FROM jwt_tokens
 WHERE user_id = $1 AND family != $2
 `
 
-type DeleteJwtTokenByUserIdParams struct {
+type DeleteJwtTokenByUserIdExcludeFamilyParams struct {
 	UserID string `json:"user_id"`
 	Family string `json:"family"`
 }
 
-func (q *Queries) DeleteJwtTokenByUserId(ctx context.Context, arg DeleteJwtTokenByUserIdParams) error {
-	_, err := q.db.Exec(ctx, deleteJwtTokenByUserId, arg.UserID, arg.Family)
+func (q *Queries) DeleteJwtTokenByUserIdExcludeFamily(ctx context.Context, arg DeleteJwtTokenByUserIdExcludeFamilyParams) error {
+	_, err := q.db.Exec(ctx, deleteJwtTokenByUserIdExcludeFamily, arg.UserID, arg.Family)
+	return err
+}
+
+const deleteJwtTokensByUserId = `-- name: DeleteJwtTokensByUserId :exec
+DELETE FROM jwt_tokens
+WHERE user_id = $1
+`
+
+func (q *Queries) DeleteJwtTokensByUserId(ctx context.Context, userID string) error {
+	_, err := q.db.Exec(ctx, deleteJwtTokensByUserId, userID)
 	return err
 }
 

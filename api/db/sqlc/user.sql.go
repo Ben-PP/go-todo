@@ -135,16 +135,15 @@ func (q *Queries) GetUserByUsername(ctx context.Context, username string) (User,
 
 const updateUser = `-- name: UpdateUser :one
 UPDATE users
-SET username = $2, password_hash = $3, is_admin = $4
+SET username = $2, is_admin = $3
 WHERE id = $1
 RETURNING id, username, is_admin, created_at
 `
 
 type UpdateUserParams struct {
-	ID           string `json:"id"`
-	Username     string `json:"username"`
-	PasswordHash string `json:"password_hash"`
-	IsAdmin      bool   `json:"is_admin"`
+	ID       string `json:"id"`
+	Username string `json:"username"`
+	IsAdmin  bool   `json:"is_admin"`
 }
 
 type UpdateUserRow struct {
@@ -155,12 +154,7 @@ type UpdateUserRow struct {
 }
 
 func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (UpdateUserRow, error) {
-	row := q.db.QueryRow(ctx, updateUser,
-		arg.ID,
-		arg.Username,
-		arg.PasswordHash,
-		arg.IsAdmin,
-	)
+	row := q.db.QueryRow(ctx, updateUser, arg.ID, arg.Username, arg.IsAdmin)
 	var i UpdateUserRow
 	err := row.Scan(
 		&i.ID,
