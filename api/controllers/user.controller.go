@@ -34,6 +34,15 @@ func (uc *UserController) CreateUser(ctx *gin.Context) {
 		return
 	}
 
+	isPasswdValid, err := util.ValidatePassword(payload.Password)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"status": "internal-server-error"})
+		return
+	} else if !isPasswdValid {
+		ctx.JSON(http.StatusBadRequest, gin.H{"status": "password-criteria-unmet"})
+		return
+	}
+
 	userUUID := uuid.New()
 	// TODO Check password requirements
 	passwd := payload.Password

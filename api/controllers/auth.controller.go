@@ -229,6 +229,16 @@ func (ac *AuthController) UpdatePassword(ctx *gin.Context) {
 		})
 		return
 	}
+	
+	isPasswdValid, err := util.ValidatePassword(payload.NewPassword)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"status": "internal-server-error"})
+		return
+	} else if !isPasswdValid {
+		ctx.JSON(http.StatusBadRequest, gin.H{"status": "password-criteria-unmet"})
+		return
+	}
+
 	user, err := ac.db.GetUserById(ctx, userID)
 	if err != nil {
 		ctx.JSON(http.StatusUnauthorized, gin.H{
@@ -245,8 +255,6 @@ func (ac *AuthController) UpdatePassword(ctx *gin.Context) {
 		})
 		return
 	}
-
-	// TODO Validate new password
 
 	newPasswordHash, err := util.HashPassword(payload.NewPassword)
 	if err != nil {
