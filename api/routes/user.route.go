@@ -19,4 +19,5 @@ func (ur *UserRoutes) UserRoute(rg *gin.RouterGroup) {
 	router := rg.Group("/user")
 	router.POST("/", ur.userController.CreateUser)
 	router.PATCH("/:id", middleware.JwtAuthMiddleware(), ur.userController.UpdateUser)
+	router.DELETE("/:id", middleware.JwtAuthMiddleware(), ur.userController.DeleteUser)
 }

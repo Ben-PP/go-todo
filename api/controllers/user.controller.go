@@ -202,4 +202,33 @@ func (uc *UserController) UpdateUser(ctx *gin.Context) {
 	})
 }
 
-// TODO Add DeleteUser
+// Controller for deleting users
+func (uc *UserController) DeleteUser(ctx *gin.Context) {
+	tokenUserId, _, _, err := util.GetTokenVariables(ctx)
+	if err != nil {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"status": "invalid-token"})
+		return
+	}
+
+	reqUser, err := uc.db.GetUserById(ctx, tokenUserId)
+	if err != nil {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"status": "invalid-token"})
+		return
+	}
+
+	userIDToDelete := ctx.Param("id")
+	if userIDToDelete != reqUser.ID && !reqUser.IsAdmin {
+		ctx.JSON(http.StatusForbidden, gin.H{
+			"status": "forbidden",
+			"detail": "Only admins can delete other users.",
+		})
+		return
+	}
+
+	if err := uc.db.DeleteUser(ctx, userIDToDelete); err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"status": "internal-server-error"})
+		return
+	}
+
+	ctx.JSON(http.StatusNoContent, gin.H{})
+}
