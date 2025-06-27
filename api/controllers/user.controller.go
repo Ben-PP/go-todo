@@ -24,7 +24,6 @@ func NewUserController(db *db.Queries, ctx context.Context) *UserController {
 }
 
 func (uc *UserController) CreateUser(ctx *gin.Context) {
-	// TODO Allow user to be created only if there is no users or caller is admin.
 	var payload *schemas.CreateUser
 	if err := ctx.ShouldBindJSON(&payload); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{
@@ -32,6 +31,20 @@ func (uc *UserController) CreateUser(ctx *gin.Context) {
 			"detail": err.Error(),
 		})
 		return
+	}
+
+	users, err := uc.db.GetAllUsers(ctx)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"status": "internal-server-error",
+			"detail": err.Error(),
+		})
+		return
+	}
+
+	makeAdmin := false
+	if len(users) == 0 {
+		makeAdmin = true
 	}
 
 	isPasswdValid, err := util.ValidatePassword(payload.Password)
@@ -67,7 +80,7 @@ func (uc *UserController) CreateUser(ctx *gin.Context) {
 		ID: userUUID.String(),
 		Username: payload.Username,
 		PasswordHash: passwdHash,
-		IsAdmin: true,
+		IsAdmin: makeAdmin,
 	}
 
 	user, err := uc.db.CreateUser(ctx, *args)
@@ -185,7 +198,7 @@ func (uc *UserController) UpdateUser(ctx *gin.Context) {
 		Username: payload.Username,
 		IsAdmin: *payload.IsAdmin,
 	}
-	// TODO Validate username
+
 	updatedUser, err := uc.db.UpdateUser(ctx, *args)
 	if err != nil {
 		var pgErr *pgconn.PgError
@@ -214,10 +227,22 @@ func (uc *UserController) UpdateUser(ctx *gin.Context) {
 	}
 
 	if oldUser.IsAdmin != updatedUser.IsAdmin {
-		fmt.Println("Userid: ", userIDToUpdate)
-		if err := uc.db.DeleteJwtTokensByUserId(ctx, userIDToUpdate); err != nil {
+		fmt.Println("HERE")
+		if err := uc.db.DeleteJwtTokensByUserId(ctx, updatedUser.ID); err != nil {
 			// TODO Log this as this would be bad if ever happened or user has not logged in once yet
-			fmt.Println(err.Error())
+			var pgErr *pgconn.PgError
+			if errors.As(err, &pgErr) {
+				fmt.Println("pgErr: ",pgErr)
+				switch pgErr.Code {
+				default:
+					ctx.JSON(http.StatusInternalServerError, gin.H{
+						"status": "internal-server-error",
+						"detail": pgErr.Error(),
+					})
+				}
+				return
+			}
+			fmt.Println("Error: ",err.Error())
 		}
 	}
 

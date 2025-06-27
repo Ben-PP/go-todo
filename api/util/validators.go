@@ -34,5 +34,5 @@ func ValidateUsername(username string) (bool, error) {
 		return false, err
 	}
 
-	return hasDisallowedChars, nil
+	return !hasDisallowedChars, nil
 }

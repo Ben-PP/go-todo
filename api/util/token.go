@@ -32,10 +32,10 @@ func getConfig() (*Config, error) {
 	return globalConfig, nil
 }
 
-func generateToken(username string, userID string, isAdmin bool, isRefreshToken bool, family string) (string, MyCustomClaims, error) {
+func generateToken(username string, userID string, isAdmin bool, isRefreshToken bool, family string) (string, *MyCustomClaims, error) {
 	config, err := getConfig()
 	if err != nil {
-		return "", MyCustomClaims{}, err
+		return "", nil, err
 	}
 	
 	authLifeSpan := config.AccessTokenLifeSpan
@@ -71,23 +71,23 @@ func generateToken(username string, userID string, isAdmin bool, isRefreshToken 
 	}
 	encodedToken, err := token.SignedString([]byte(secret))
 	if err != nil {
-		return "", MyCustomClaims{}, err
+		return "", nil, err
 	}
-	return encodedToken, claims, nil
+	return encodedToken, &claims, nil
 }
 
-func GenerateAccessToken(username string, userID string, isAdmin bool) (string, MyCustomClaims, error) {
+func GenerateAccessToken(username string, userID string, isAdmin bool) (string, *MyCustomClaims, error) {
 	return generateToken(username, userID, isAdmin, false, "")
 }
 
-func GenerateRefreshToken(username string, userID string, isAdmin bool, tokenFamily string) (string, MyCustomClaims, error) {
+func GenerateRefreshToken(username string, userID string, isAdmin bool, tokenFamily string) (string, *MyCustomClaims, error) {
 	return generateToken(username, userID, isAdmin, true, tokenFamily)
 }
 
-func decodeToken(tokenString string, isRefreshToken bool) (MyCustomClaims, error) {
+func decodeToken(tokenString string, isRefreshToken bool) (*MyCustomClaims, error) {
 	config, err := getConfig()
 	if err != nil {
-		return MyCustomClaims{}, err
+		return nil, err
 	}
 
 	secret := config.JwtAccessSecret
@@ -98,19 +98,19 @@ func decodeToken(tokenString string, isRefreshToken bool) (MyCustomClaims, error
 		return []byte(secret), nil
 	})
 	if err != nil {
-		return MyCustomClaims{}, err
+		return nil, err
 	} else if claims, ok := decodedToken.Claims.(*MyCustomClaims); ok {
-		return *claims, nil
+		return claims, nil
 	} else {
-		return MyCustomClaims{}, errors.New("something went wrong decoding token")
+		return nil, errors.New("something went wrong decoding token")
 	}
 }
 
-func DecodeAccessToken(tokenString string) (MyCustomClaims, error) {
+func DecodeAccessToken(tokenString string) (*MyCustomClaims, error) {
 	return decodeToken(tokenString, false)
 }
 
-func DecodeRefreshToken(tokenString string) (MyCustomClaims, error) {
+func DecodeRefreshToken(tokenString string) (*MyCustomClaims, error) {
 	return decodeToken(tokenString, true)
 }
 
@@ -124,7 +124,7 @@ func getTokenFromHeader(c *gin.Context) string {
 	return ""
 }
 
-func DecodeTokenFromHeader(c *gin.Context) (MyCustomClaims, error) {
+func DecodeTokenFromHeader(c *gin.Context) (*MyCustomClaims, error) {
 	tokenString := getTokenFromHeader(c)
 	return DecodeAccessToken(tokenString)
 }
