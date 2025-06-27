@@ -274,8 +274,13 @@ func (uc *UserController) DeleteUser(ctx *gin.Context) {
 		return
 	}
 
-	if err := uc.db.DeleteUser(ctx, userIDToDelete); err != nil {
+	rows, err := uc.db.DeleteUser(ctx, userIDToDelete)
+	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"status": "internal-server-error"})
+		return
+	}
+	if rows == 0 {
+		ctx.JSON(http.StatusBadRequest, gin.H{"status": "user-not-removed"})
 		return
 	}
 
