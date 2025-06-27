@@ -59,7 +59,7 @@ func (ac *AuthController) Refresh(ctx *gin.Context) {
 		invalidTokenResponse(ctx)
 		return
 	}
-	// TODO Get user from db to check the user info
+
 	user, err := ac.db.GetUserById(ctx, dbToken.UserID)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"status":"internal-server-error"})
