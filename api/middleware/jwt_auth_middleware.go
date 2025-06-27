@@ -21,7 +21,7 @@ func JwtAuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		c.Set("x-token-username", token.UserName)
+		c.Set("x-token-username", token.Username)
 		c.Set("x-token-user-id", token.Subject)
 		c.Set("x-token-is-admin", token.IsAdmin)
 

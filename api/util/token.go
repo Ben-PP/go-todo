@@ -12,7 +12,7 @@ import (
 
 type MyCustomClaims struct {
 	IsAdmin bool `json:"is_admin"`
-	UserName string `json:"username"`
+	Username string `json:"username"`
 	Family string `json:"family"`
 	jwt.RegisteredClaims
 }

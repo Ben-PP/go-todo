@@ -60,11 +60,16 @@ func (ac *AuthController) Refresh(ctx *gin.Context) {
 		return
 	}
 	// TODO Get user from db to check the user info
+	user, err := ac.db.GetUserById(ctx, dbToken.UserID)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"status":"internal-server-error"})
+		return
+	}
 
 	newRefreshToken, refreshClaims, err := util.GenerateRefreshToken(
-		decodedRefreshToken.UserName,
-		decodedRefreshToken.Subject,
-		decodedRefreshToken.IsAdmin,
+		user.Username,
+		user.ID,
+		user.IsAdmin,
 		decodedRefreshToken.Family,
 	)
 	if err != nil {
@@ -72,9 +77,9 @@ func (ac *AuthController) Refresh(ctx *gin.Context) {
 		return
 	}
 	newAccessToken, _, err := util.GenerateAccessToken(
-		decodedRefreshToken.UserName,
-		decodedRefreshToken.Subject,
-		decodedRefreshToken.IsAdmin,
+		user.Username,
+		user.ID,
+		user.IsAdmin,
 	)
 	if err != nil {
 		invalidTokenResponse(ctx)
