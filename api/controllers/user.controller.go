@@ -227,7 +227,6 @@ func (uc *UserController) UpdateUser(ctx *gin.Context) {
 	}
 
 	if oldUser.IsAdmin != updatedUser.IsAdmin {
-		fmt.Println("HERE")
 		if err := uc.db.DeleteJwtTokensByUserId(ctx, updatedUser.ID); err != nil {
 			// TODO Log this as this would be bad if ever happened or user has not logged in once yet
 			var pgErr *pgconn.PgError
