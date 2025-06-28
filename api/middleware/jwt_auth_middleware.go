@@ -16,7 +16,7 @@ func JwtAuthMiddleware() gin.HandlerFunc {
 		token, err := util.DecodeTokenFromHeader(c)
 		if err != nil {
 			if errors.Is(err, jwt.ErrTokenExpired) || errors.Is(err, jwt.ErrSignatureInvalid) {
-				logging.LogTokenUsage(false, "use", "access", token)
+				logging.LogTokenUsage(false, c.FullPath(), "use", "access", c.RemoteIP(), token)
 
 				var errType gin.ErrorType
 				if errors.Is(err, jwt.ErrTokenExpired) {
@@ -31,13 +31,15 @@ func JwtAuthMiddleware() gin.HandlerFunc {
 			} else {
 				logging.LogTokenUsage(
 					false,
+					c.FullPath(),
 					"use",
 					"access",
+					c.RemoteIP(),
 					token,
 				)
 				_, file, line, _ := runtime.Caller(1)
 				c.Error(ErrTokenValidationFailed).
-				SetType(gin.ErrorTypePrivate).SetMeta(util.ErrorMeta{
+				SetType(gin.ErrorTypePrivate).SetMeta(util.ErrInternalMeta{
 					File: fmt.Sprintf("%v: %d", file, line),
 					OrigErrMessage: err.Error(),
 				})
@@ -46,7 +48,7 @@ func JwtAuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		logging.LogTokenUsage(true, "use", "access", token)
+		logging.LogTokenUsage(true, c.FullPath(), "use", "access", c.RemoteIP(), token)
 
 		c.Set("x-token-username", token.Username)
 		c.Set("x-token-user-id", token.Subject)

@@ -7,21 +7,27 @@ import (
 
 func LogTokenUsage(
 	success bool,
+	targetPath string,
 	eventType string,
 	usedAsType string,
+	srcIp string,
 	token *util.MyCustomClaims,
-	/*tokenID string,
-	tokenExpiry string,*/
 	) {
+		origin := slog.Group(
+			"origin",
+			slog.String("ip", srcIp),
+		)
 		if token != nil {
 			log(
 				slog.LevelInfo,
 				"Access event to the application",
 				"tokens",
+				origin,
 				slog.Group(
 					"action",
 					slog.String("type", eventType),
 					slog.Bool("success", success),
+					slog.String("target_path", targetPath),
 					slog.String("used_as_type", usedAsType),
 				),
 				slog.Group(
@@ -40,6 +46,7 @@ func LogTokenUsage(
 				slog.LevelInfo,
 				"Access event to the application",
 				"tokens",
+				origin,
 				slog.Group(
 					"action",
 					slog.String("type", eventType),

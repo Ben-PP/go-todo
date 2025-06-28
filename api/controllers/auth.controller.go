@@ -2,13 +2,17 @@ package controllers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	db "go-todo/db/sqlc"
+	"go-todo/logging"
 	"go-todo/schemas"
 	"go-todo/util"
 	"net/http"
+	"runtime"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -21,19 +25,14 @@ func NewAuthController(db *db.Queries, ctx context.Context) *AuthController {
 	return &AuthController{db: db, ctx: ctx}
 }
 
-func invalidTokenResponse(ctx *gin.Context) {
-	ctx.JSON(http.StatusUnauthorized, gin.H{
-		"status": "invalid-token",
-	})
+func logTokenUsage(success bool, token *util.MyCustomClaims, c *gin.Context) {
+	logging.LogTokenUsage(success, c.FullPath(), "use",	"refresh", c.RemoteIP(), token,)
 }
 
 func (ac *AuthController) Refresh(ctx *gin.Context) {
 	var payload *schemas.Refresh
 	if err := ctx.ShouldBindBodyWithJSON(&payload); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"status": "malformed-body",
-			"detail": err.Error(),
-		})
+		ctx.Error(err).SetType(gin.ErrorTypeBind)
 		return
 	}
 
@@ -41,31 +40,57 @@ func (ac *AuthController) Refresh(ctx *gin.Context) {
 
 	decodedRefreshToken, err := util.DecodeRefreshToken(refreshToken)
 	if err != nil {
-		invalidTokenResponse(ctx)
+		logTokenUsage(false, decodedRefreshToken, ctx)
+		ctx.Error(err).SetType(gin.ErrorTypeBind)
 		return
 	}
 
 	dbToken, err := ac.db.GetJwtTokenByJti(ctx, decodedRefreshToken.ID)
 	if err != nil {
-		invalidTokenResponse(ctx)
-		fmt.Println(err.Error())
+		logTokenUsage(false, decodedRefreshToken, ctx)
+		_, file, line, _ := runtime.Caller(0)
+		
+		ctx.Error(err).SetType(gin.ErrorTypePrivate).
+		SetMeta(*util.NewErrDatabaseMeta(
+			fmt.Sprintf("%v: %d", file, line),
+			fmt.Sprintf("Queried for jwt token: %v", decodedRefreshToken.ID),
+			401,
+		))
 		return
 	}
-
+	
 	if dbToken.IsUsed {
+		logTokenUsage(false, decodedRefreshToken, ctx)
+		logging.LogSecurityEvent(
+			logging.SecurityScoreHigh,
+			logging.SecurityEventRefreshTokenReuse,
+		)
 		if err := ac.db.DeleteJwtTokenByFamily(ctx, dbToken.Family); err != nil {
-			// TODO Log error
+			_, file, line, _ := runtime.Caller(0)
+			logging.LogError(
+				err,
+				fmt.Sprintf("%v: %d", file, line),
+				fmt.Sprintf("Failed to delete jwt family '%v'", dbToken.Family),
+			)
 		}
-		invalidTokenResponse(ctx)
+		ctx.JSON(401, gin.H{"status": "unauthorized"})
 		return
 	}
-
+	
 	user, err := ac.db.GetUserById(ctx, dbToken.UserID)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"status":"internal-server-error"})
+		logTokenUsage(false, decodedRefreshToken, ctx)
+		_, file, line, _ := runtime.Caller(0)
+
+		ctx.Error(err).SetType(gin.ErrorTypePrivate).
+		SetMeta(*util.NewErrDatabaseMeta(
+			fmt.Sprintf("%v: %d", file, line),
+			fmt.Sprintf("User '%v' was not found.", dbToken.UserID),
+			401,
+		))
 		return
 	}
-
+	
 	newRefreshToken, refreshClaims, err := util.GenerateRefreshToken(
 		user.Username,
 		user.ID,
@@ -73,7 +98,14 @@ func (ac *AuthController) Refresh(ctx *gin.Context) {
 		decodedRefreshToken.Family,
 	)
 	if err != nil {
-		invalidTokenResponse(ctx)
+		logTokenUsage(false, decodedRefreshToken, ctx)
+		_, file, line, _ := runtime.Caller(0)
+
+		ctx.Error(err).SetType(gin.ErrorTypePrivate).
+		SetMeta(*util.NewErrInternalMeta(
+			fmt.Sprintf("%v: %d", file, line),
+			err.Error(),
+		))
 		return
 	}
 	newAccessToken, _, err := util.GenerateAccessToken(
@@ -82,11 +114,26 @@ func (ac *AuthController) Refresh(ctx *gin.Context) {
 		user.IsAdmin,
 	)
 	if err != nil {
-		invalidTokenResponse(ctx)
+		logTokenUsage(false, decodedRefreshToken, ctx)
+		_, file, line, _ := runtime.Caller(0)
+		ctx.Error(err).SetType(gin.ErrorTypePrivate).
+		SetMeta(*util.NewErrInternalMeta(
+			fmt.Sprintf("%v: %d", file, line),
+			err.Error(),
+		))
 		return
 	}
 
-	ac.db.UseJwtToken(ctx, dbToken.Jti)
+	// Mark the token as used.
+	if err := ac.db.UseJwtToken(ctx, dbToken.Jti); err != nil {
+		logTokenUsage(false, decodedRefreshToken, ctx)
+		_, file, line, _ := runtime.Caller(0)
+		ctx.Error(err).SetType(gin.ErrorTypePrivate).
+		SetMeta(*util.NewErrInternalMeta(
+			fmt.Sprintf("%v: %d", file, line),
+			err.Error(),
+		))
+	}
 
 	args := &db.CreateJwtTokenParams{
 		Jti: refreshClaims.ID,
@@ -97,13 +144,28 @@ func (ac *AuthController) Refresh(ctx *gin.Context) {
 	}
 	
 	if err := ac.db.CreateJwtToken(ctx, *args); err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"status": "internal-server-error",
-			"detail": err.Error(),
-		})
+		logTokenUsage(false, decodedRefreshToken, ctx)
+		_, file, line, _ := runtime.Caller(0)
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			ctx.Error(pgErr).SetType(gin.ErrorTypePrivate).
+			SetMeta(*util.NewErrDatabaseMeta(
+				fmt.Sprintf("%v: %d", file, line),
+				fmt.Sprintf("Unable to insert token '%v'", args.Jti),
+				500,
+			))
+		} else {		
+			ctx.Error(err).SetType(gin.ErrorTypePrivate).
+			SetMeta(*util.NewErrDatabaseMeta(
+				fmt.Sprintf("%v: %d", file, line),
+				fmt.Sprintf("Unable to insert token '%v'", args.Jti),
+				500,
+			))
+		}
 		return
 	}
 
+	logTokenUsage(true, decodedRefreshToken, ctx)
 	ctx.JSON(http.StatusOK, gin.H{
 		"status": "ok",
 		"access_token": newAccessToken,
