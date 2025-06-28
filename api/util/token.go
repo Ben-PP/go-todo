@@ -24,7 +24,7 @@ func getConfig() (*Config, error) {
 		var err error
 		config, err := LoadConfig(".")
 		if err != nil {
-			return nil, err
+			return nil, errors.New("config-load-error: "+err.Error())
 		}
 		globalConfig = &config
 	}
@@ -98,6 +98,17 @@ func decodeToken(tokenString string, isRefreshToken bool) (*MyCustomClaims, erro
 		return []byte(secret), nil
 	})
 	if err != nil {
+		if claims, ok := decodedToken.Claims.(*MyCustomClaims); ok {
+			var newErr error
+			if strings.HasSuffix(err.Error(), "token is expired") {
+				newErr = errors.New("token-expired")
+			} else if strings.HasSuffix(err.Error(), "signature is invalid") {
+				newErr = errors.New("token-signature-invalid")
+			} else {
+				newErr = err
+			}
+			return claims, newErr
+		}
 		return nil, err
 	} else if claims, ok := decodedToken.Claims.(*MyCustomClaims); ok {
 		return claims, nil

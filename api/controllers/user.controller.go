@@ -182,7 +182,6 @@ func (uc *UserController) UpdateUser(ctx *gin.Context) {
 			}
 			ctx.JSON(http.StatusInternalServerError, gin.H{"status": "internal-server-error", "detail": err.Error()})
 			return
-			// TODO Handle user not found. This is not server error and should return a proper response.
 		}
 		oldUser = &userFromDB
 	} else {
