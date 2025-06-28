@@ -8,12 +8,24 @@ import (
 	"runtime"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 )
+
+var ErrTokenValidationFailed = errors.New("token-validation-failed")
 
 type ResponseParams struct {
 	Status int
 	StatusMessage string
 	Detail string
+}
+
+type StatusMessages struct {
+	Unauthorized		string
+	InternalServerError	string
+}
+var statusMessages = StatusMessages{
+	InternalServerError: "internal-server-error",
+	Unauthorized: "unauthorized",
 }
 
 func getErrMeta(err *gin.Error) (*util.ErrorMeta) {
@@ -48,27 +60,26 @@ func ErrorHandlerMiddleware() gin.HandlerFunc {
 		isPublic := err.Type == gin.ErrorTypePublic
 		var params *ResponseParams
 		meta := getErrMeta(err)
-
-		switch err.Error() {
-		case "token-expired":
-			params = &ResponseParams{401,"unauthorized",err.Error()}
-		case "token-signature-invalid":
-			params = &ResponseParams{401,"unauthorized", "invalid-token"}
-		case "token-validation-error":
+		switch {
+		case errors.Is(err.Err, jwt.ErrTokenExpired):
+			params = &ResponseParams{401,statusMessages.Unauthorized,err.Error()}
+		case errors.Is(err.Err, jwt.ErrSignatureInvalid):
+			params = &ResponseParams{401,statusMessages.Unauthorized, "invalid-token"}
+		case errors.Is(err.Err, ErrTokenValidationFailed):
 			metaPanic(meta, err)
 			logging.LogError(err.Err, meta.File, meta.OrigErrMessage)
-			params = &ResponseParams{401, "unauthorized", "invalid-token"}
-		case "internal-server-error":
-			metaPanic(meta, err)
-			logging.LogError(err.Err, meta.File, meta.OrigErrMessage)
-			params = &ResponseParams{500, err.Error(), ""}
-			if isPublic {
-				params.Detail = fmt.Sprintf("%v", err.Meta)
-			}
+			params = &ResponseParams{401, statusMessages.Unauthorized, "invalid-token"}
 		default:
 			metaPanic(meta, err)
 			logging.LogError(err.Err, meta.File, meta.OrigErrMessage)
-			params = &ResponseParams{500, "internal-server-error", ""}
+			params = &ResponseParams{500, statusMessages.InternalServerError, ""}
+			if isPublic {
+				params.Detail = fmt.Sprintf("%v", meta.OrigErrMessage)
+			}
+		/*case err.Error() == "internal-server-error":
+			metaPanic(meta, err)
+			logging.LogError(err.Err, meta.File, meta.OrigErrMessage)
+			params = &ResponseParams{500, statusMessages.InternalServerError, ""}*/
 		}
 		
 		body := gin.H{"status": params.StatusMessage}
