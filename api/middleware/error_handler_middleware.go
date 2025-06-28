@@ -76,7 +76,7 @@ func ErrorHandlerMiddleware() gin.HandlerFunc {
 		case errors.Is(err.Err, jwt.ErrTokenExpired):
 			params = &ResponseParams{401,statusMessages.Unauthorized,err.Error()}
 		case errors.Is(err.Err, jwt.ErrSignatureInvalid):
-			logging.LogSecurityEvent(logging.SecurityScoreLow, logging.SecurityEventInvalidTokenSignature)
+			logging.LogSecurityEvent(logging.SecurityScoreLow, logging.SecurityEventInvalidTokenSignature, "jwt-tokens")
 			params = &ResponseParams{401,statusMessages.Unauthorized, "token-invalid"}
 		case errors.Is(err.Err, jwt.ErrTokenMalformed):
 			params = &ResponseParams{400, statusMessages.MalformedBody, "token-malformed"}

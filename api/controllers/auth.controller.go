@@ -12,6 +12,7 @@ import (
 	"runtime"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 )
@@ -25,8 +26,48 @@ func NewAuthController(db *db.Queries, ctx context.Context) *AuthController {
 	return &AuthController{db: db, ctx: ctx}
 }
 
-func logTokenUsage(success bool, token *util.MyCustomClaims, c *gin.Context) {
-	logging.LogTokenUsage(success, c.FullPath(), "use",	"refresh", c.RemoteIP(), token,)
+func logTokenEventUse(success bool, token *util.MyCustomClaims, c *gin.Context) {
+	logging.LogTokenEvent(success, c.FullPath(), logging.TokenEventTypeUse,	c.RemoteIP(), token)
+}
+
+func logTokenCreations(claims []*util.MyCustomClaims, c *gin.Context) {
+	for _, claims := range claims {
+		logging.LogTokenEvent(
+			true,
+			c.FullPath(),
+			logging.TokenEventtypeCreate,
+			c.RemoteIP(),
+			claims,
+		)
+	}
+}
+
+func generateTokens(family string, user db.User) (
+	refreshToken string,
+	refreshClaims *util.MyCustomClaims,
+	accessToken string,
+	accessClaims *util.MyCustomClaims,
+	err error,
+	) {
+		refreshToken, refreshClaims, err = util.GenerateRefreshToken(
+		user.Username,
+		user.ID,
+		user.IsAdmin,
+		family,
+	)
+	if err != nil {
+		return "", nil, "", nil, err
+	}
+	accessToken, accessClaims, err = util.GenerateAccessToken(
+		user.Username,
+		user.ID,
+		user.IsAdmin,
+	)
+	if err != nil {
+
+		return "", nil, "", nil, err
+	}
+	return
 }
 
 func (ac *AuthController) Refresh(ctx *gin.Context) {
@@ -40,14 +81,14 @@ func (ac *AuthController) Refresh(ctx *gin.Context) {
 
 	decodedRefreshToken, err := util.DecodeRefreshToken(refreshToken)
 	if err != nil {
-		logTokenUsage(false, decodedRefreshToken, ctx)
+		logTokenEventUse(false, decodedRefreshToken, ctx)
 		ctx.Error(err).SetType(gin.ErrorTypeBind)
 		return
 	}
 
 	dbToken, err := ac.db.GetJwtTokenByJti(ctx, decodedRefreshToken.ID)
 	if err != nil {
-		logTokenUsage(false, decodedRefreshToken, ctx)
+		logTokenEventUse(false, decodedRefreshToken, ctx)
 		_, file, line, _ := runtime.Caller(0)
 		
 		ctx.Error(err).SetType(gin.ErrorTypePrivate).
@@ -60,10 +101,11 @@ func (ac *AuthController) Refresh(ctx *gin.Context) {
 	}
 	
 	if dbToken.IsUsed {
-		logTokenUsage(false, decodedRefreshToken, ctx)
+		logTokenEventUse(false, decodedRefreshToken, ctx)
 		logging.LogSecurityEvent(
-			logging.SecurityScoreHigh,
+			logging.SecurityScoreCritical,
 			logging.SecurityEventRefreshTokenReuse,
+			fmt.Sprintf("value=%v,type=jwt",decodedRefreshToken.ID),
 		)
 		if err := ac.db.DeleteJwtTokenByFamily(ctx, dbToken.Family); err != nil {
 			_, file, line, _ := runtime.Caller(0)
@@ -79,7 +121,7 @@ func (ac *AuthController) Refresh(ctx *gin.Context) {
 	
 	user, err := ac.db.GetUserById(ctx, dbToken.UserID)
 	if err != nil {
-		logTokenUsage(false, decodedRefreshToken, ctx)
+		logTokenEventUse(false, decodedRefreshToken, ctx)
 		_, file, line, _ := runtime.Caller(0)
 
 		ctx.Error(err).SetType(gin.ErrorTypePrivate).
@@ -90,32 +132,24 @@ func (ac *AuthController) Refresh(ctx *gin.Context) {
 		))
 		return
 	}
+
+	logSessionRefresh := func (success bool){logging.LogSessionEvent(
+		success,
+		ctx.FullPath(),
+		&user,
+		logging.SessionEventTypeRefresh,
+		ctx.RemoteIP(),
+	)}
 	
-	newRefreshToken, refreshClaims, err := util.GenerateRefreshToken(
-		user.Username,
-		user.ID,
-		user.IsAdmin,
+	refreshToken, refreshClaims, accessToken, accessClaims, err := generateTokens(
 		decodedRefreshToken.Family,
+		user,
 	)
 	if err != nil {
-		logTokenUsage(false, decodedRefreshToken, ctx)
+		logSessionRefresh(false)
+		logTokenEventUse(false, decodedRefreshToken, ctx)
 		_, file, line, _ := runtime.Caller(0)
 
-		ctx.Error(err).SetType(gin.ErrorTypePrivate).
-		SetMeta(*util.NewErrInternalMeta(
-			fmt.Sprintf("%v: %d", file, line),
-			err.Error(),
-		))
-		return
-	}
-	newAccessToken, _, err := util.GenerateAccessToken(
-		user.Username,
-		user.ID,
-		user.IsAdmin,
-	)
-	if err != nil {
-		logTokenUsage(false, decodedRefreshToken, ctx)
-		_, file, line, _ := runtime.Caller(0)
 		ctx.Error(err).SetType(gin.ErrorTypePrivate).
 		SetMeta(*util.NewErrInternalMeta(
 			fmt.Sprintf("%v: %d", file, line),
@@ -126,13 +160,15 @@ func (ac *AuthController) Refresh(ctx *gin.Context) {
 
 	// Mark the token as used.
 	if err := ac.db.UseJwtToken(ctx, dbToken.Jti); err != nil {
-		logTokenUsage(false, decodedRefreshToken, ctx)
+		logTokenEventUse(false, decodedRefreshToken, ctx)
+		logSessionRefresh(false)
 		_, file, line, _ := runtime.Caller(0)
 		ctx.Error(err).SetType(gin.ErrorTypePrivate).
 		SetMeta(*util.NewErrInternalMeta(
 			fmt.Sprintf("%v: %d", file, line),
 			err.Error(),
 		))
+		return
 	}
 
 	args := &db.CreateJwtTokenParams{
@@ -144,7 +180,8 @@ func (ac *AuthController) Refresh(ctx *gin.Context) {
 	}
 	
 	if err := ac.db.CreateJwtToken(ctx, *args); err != nil {
-		logTokenUsage(false, decodedRefreshToken, ctx)
+		logTokenEventUse(false, decodedRefreshToken, ctx)
+		logSessionRefresh(false)
 		_, file, line, _ := runtime.Caller(0)
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) {
@@ -165,21 +202,20 @@ func (ac *AuthController) Refresh(ctx *gin.Context) {
 		return
 	}
 
-	logTokenUsage(true, decodedRefreshToken, ctx)
+	logSessionRefresh(true)
+	logTokenCreations([]*util.MyCustomClaims{refreshClaims,accessClaims}, ctx)
+	logTokenEventUse(true, decodedRefreshToken, ctx)
 	ctx.JSON(http.StatusOK, gin.H{
 		"status": "ok",
-		"access_token": newAccessToken,
-		"refresh_token": newRefreshToken,
+		"access_token": accessToken,
+		"refresh_token": refreshToken,
 	})
 }
 
 func (ac *AuthController) Login(ctx *gin.Context) {
 	var payload *schemas.Login
 	if err:= ctx.ShouldBindBodyWithJSON(&payload); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"status": "malformed-body",
-			"detail": err.Error(),
-		})
+		ctx.Error(err).SetType(gin.ErrorTypeBind)
 		return
 	}
 
@@ -188,43 +224,56 @@ func (ac *AuthController) Login(ctx *gin.Context) {
 
 	user, err := ac.db.GetUserByUsername(ctx, username)
 	if err != nil {
-		ctx.JSON(http.StatusUnauthorized, gin.H{
-			"status": "invalid-credentials",
-			"detail": err.Error(),
-		})
+		if errors.Is(err, pgx.ErrNoRows) {
+			logging.LogSecurityEvent(
+				logging.SecurityScoreLow,
+				logging.SecurityEventLoginToInvalidUsername,
+				fmt.Sprintf("value=%v,type=login",username),
+			)
+			ctx.JSON(http.StatusUnauthorized, gin.H{"status": "invalid-credentials"})
+			return
+		}
+		_, file, line, _ := runtime.Caller(0)
+		ctx.Error(err).SetType(gin.ErrorTypePrivate).
+		SetMeta(*util.NewErrInternalMeta(
+			fmt.Sprintf("%v: %d", file, line),
+			err.Error(),
+		))
 		return
 	}
 
 	if pwdCorrect := util.VerifyPassword(password, user.PasswordHash); !pwdCorrect {
+		logging.LogSecurityEvent(
+			logging.SecurityScoreLow,
+			logging.SecurityEventFailedLogin,
+			fmt.Sprintf("value=%v,type=login",username),
+		)
+		logging.LogSessionEvent(
+			false,
+			ctx.FullPath(),
+			&user,
+			logging.SessionEventTypeLogin,
+			ctx.RemoteIP(),
+		)
 		ctx.JSON(http.StatusUnauthorized, gin.H{
 			"status": "invalid-credentials",
 		})
 		return
 	}
 
-	accessToken, _, err := util.GenerateAccessToken(
-		user.Username,
-		user.ID,
-		user.IsAdmin,
-	)
-	if err != nil {
-		ctx.JSON(http.StatusUnauthorized, gin.H{
-			"status": "invalid-credentials",
-			"detail": err.Error(),
-		})
-		return
-	}
-	refreshToken, refreshClaims, err := util.GenerateRefreshToken(
-		user.Username,
-		user.ID,
-		user.IsAdmin,
+	refreshToken, refreshClaims, accessToken, accessClaims, err := generateTokens(
 		"",
+		user,
 	)
 	if err != nil {
-		ctx.JSON(http.StatusUnauthorized, gin.H{
-			"status": "invalid-credentials",
-			"detail": err.Error(),
-		})
+		logTokenEventUse(false, &util.MyCustomClaims{}, ctx)
+		_, file, line, _ := runtime.Caller(0)
+
+		ctx.Error(err).SetType(gin.ErrorTypePrivate).
+		SetMeta(*util.NewErrInternalMeta(
+			fmt.Sprintf("%v: %d", file, line),
+			err.Error(),
+		))
 		return
 	}
 
@@ -237,13 +286,35 @@ func (ac *AuthController) Login(ctx *gin.Context) {
 	}
 	
 	if err := ac.db.CreateJwtToken(ctx, *args); err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"status": "internal-server-error",
-			"detail": err.Error(),
-		})
+		logTokenEventUse(false, &util.MyCustomClaims{}, ctx)
+		_, file, line, _ := runtime.Caller(0)
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			ctx.Error(pgErr).SetType(gin.ErrorTypePrivate).
+			SetMeta(*util.NewErrDatabaseMeta(
+				fmt.Sprintf("%v: %d", file, line),
+				fmt.Sprintf("Unable to insert token '%v'", args.Jti),
+				500,
+			))
+		} else {		
+			ctx.Error(err).SetType(gin.ErrorTypePrivate).
+			SetMeta(*util.NewErrDatabaseMeta(
+				fmt.Sprintf("%v: %d", file, line),
+				fmt.Sprintf("Unable to insert token '%v'", args.Jti),
+				500,
+			))
+		}
 		return
 	}
 
+	logging.LogSessionEvent(
+		true,
+		ctx.FullPath(),
+		&user,
+		logging.SessionEventTypeLogin,
+		ctx.RemoteIP(),
+	)
+	logTokenCreations([]*util.MyCustomClaims{refreshClaims,accessClaims}, ctx)
 	ctx.JSON(http.StatusOK, gin.H{
 		"status": "ok",
 		"access_token": accessToken,
