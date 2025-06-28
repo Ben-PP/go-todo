@@ -8,17 +8,21 @@ import (
 	"runtime"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 func JwtAuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		token, err := util.DecodeTokenFromHeader(c)
 		if err != nil {
-			if err.Error() == "token-expired" || err.Error() == "token-signature-invalid" {
+			if errors.Is(err, jwt.ErrTokenExpired) {
+				fmt.Println("HEREEEEEEEEEEEEEEEE")
+			}
+			if errors.Is(err, jwt.ErrTokenExpired) || errors.Is(err, jwt.ErrSignatureInvalid) {
 				logging.LogTokenUsage(false, "use", "access", token)
 
 				var errType gin.ErrorType
-				if err.Error() == "token-expired" {
+				if errors.Is(err, jwt.ErrTokenExpired) {
 					errType = gin.ErrorTypePublic
 				} else {
 					errType = gin.ErrorTypePrivate
@@ -44,6 +48,8 @@ func JwtAuthMiddleware() gin.HandlerFunc {
 			c.Abort()
 			return
 		}
+
+		logging.LogTokenUsage(true, "use", "access", token)
 
 		c.Set("x-token-username", token.Username)
 		c.Set("x-token-user-id", token.Subject)

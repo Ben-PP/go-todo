@@ -67,7 +67,7 @@ func ErrorHandlerMiddleware() gin.HandlerFunc {
 			}
 		default:
 			metaPanic(meta, err)
-			logging.LogError(err, meta.File, meta.OrigErrMessage)
+			logging.LogError(err.Err, meta.File, meta.OrigErrMessage)
 			params = &ResponseParams{500, "internal-server-error", ""}
 		}
 		
