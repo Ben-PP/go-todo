@@ -15,34 +15,36 @@ func JwtAuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		token, err := util.DecodeTokenFromHeader(c)
 		if err != nil {
-			if errors.Is(err, jwt.ErrTokenExpired) || errors.Is(err, jwt.ErrSignatureInvalid) {
-				logging.LogTokenEvent(false, c.FullPath(), logging.TokenEventTypeUse, c.RemoteIP(), token)
-
-				var errType gin.ErrorType
-				if errors.Is(err, jwt.ErrTokenExpired) {
-					errType = gin.ErrorTypePublic
-				} else {
-					errType = gin.ErrorTypePrivate
+			var jwtErr *util.JwtValidationError
+			if errors.As(err, &jwtErr) {
+				if errors.Is(jwtErr.OrigErr, jwt.ErrTokenExpired) ||
+				errors.Is(jwtErr.OrigErr, jwt.ErrSignatureInvalid) {
+					logging.LogTokenEvent(false, c.FullPath(), logging.TokenEventTypeUse, c.RemoteIP(), token)
+					var errType gin.ErrorType
+					if errors.Is(jwtErr.OrigErr, jwt.ErrTokenExpired) {
+						errType = gin.ErrorTypePublic
+						} else {
+							errType = gin.ErrorTypePrivate
+						}
+						c.Error(jwtErr.OrigErr).SetType(errType)
+						c.Abort()
+						return
+					} else {
+						logging.LogTokenEvent(
+							false,
+							c.FullPath(),
+							logging.TokenEventTypeUse,
+							c.RemoteIP(),
+							jwtErr.Claims,
+						)
+						_, file, line, _ := runtime.Caller(1)
+						c.Error(ErrTokenValidationFailed).
+						SetType(gin.ErrorTypePrivate).SetMeta(util.ErrInternalMeta{
+							File: fmt.Sprintf("%v: %d", file, line),
+							OrigErrMessage: err.Error(),
+						})
+					}
 				}
-
-				c.Error(err).SetType(errType)
-				c.Abort()
-				return
-			} else {
-				logging.LogTokenEvent(
-					false,
-					c.FullPath(),
-					logging.TokenEventTypeUse,
-					c.RemoteIP(),
-					token,
-				)
-				_, file, line, _ := runtime.Caller(1)
-				c.Error(ErrTokenValidationFailed).
-				SetType(gin.ErrorTypePrivate).SetMeta(util.ErrInternalMeta{
-					File: fmt.Sprintf("%v: %d", file, line),
-					OrigErrMessage: err.Error(),
-				})
-			}
 			c.Abort()
 			return
 		}
