@@ -5,9 +5,11 @@ import (
 	"errors"
 	"fmt"
 	db "go-todo/db/sqlc"
+	gterrors "go-todo/gt_errors"
 	"go-todo/logging"
 	"go-todo/schemas"
 	"go-todo/util"
+	"go-todo/util/jwt"
 	"net/http"
 	"runtime"
 
@@ -26,11 +28,11 @@ func NewAuthController(db *db.Queries, ctx context.Context) *AuthController {
 	return &AuthController{db: db, ctx: ctx}
 }
 
-func logTokenEventUse(success bool, token *util.MyCustomClaims, c *gin.Context) {
+func logTokenEventUse(success bool, token *jwt.GtClaims, c *gin.Context) {
 	logging.LogTokenEvent(success, c.FullPath(), logging.TokenEventTypeUse,	c.RemoteIP(), token)
 }
 
-func logTokenCreations(claims []*util.MyCustomClaims, c *gin.Context) {
+func logTokenCreations(claims []*jwt.GtClaims, c *gin.Context) {
 	for _, claims := range claims {
 		logging.LogTokenEvent(
 			true,
@@ -44,12 +46,12 @@ func logTokenCreations(claims []*util.MyCustomClaims, c *gin.Context) {
 
 func generateTokens(family string, user db.User) (
 	refreshToken string,
-	refreshClaims *util.MyCustomClaims,
+	refreshClaims *jwt.GtClaims,
 	accessToken string,
-	accessClaims *util.MyCustomClaims,
+	accessClaims *jwt.GtClaims,
 	err error,
 	) {
-		refreshToken, refreshClaims, err = util.GenerateRefreshToken(
+		refreshToken, refreshClaims, err = jwt.GenerateRefreshJwt(
 		user.Username,
 		user.ID,
 		user.IsAdmin,
@@ -58,7 +60,7 @@ func generateTokens(family string, user db.User) (
 	if err != nil {
 		return "", nil, "", nil, err
 	}
-	accessToken, accessClaims, err = util.GenerateAccessToken(
+	accessToken, accessClaims, err = jwt.GenerateAccessJwt(
 		user.Username,
 		user.ID,
 		user.IsAdmin,
@@ -72,31 +74,57 @@ func generateTokens(family string, user db.User) (
 
 func (ac *AuthController) Refresh(ctx *gin.Context) {
 	var payload *schemas.Refresh
-	if err := ctx.ShouldBindBodyWithJSON(&payload); err != nil {
-		ctx.Error(err).SetType(gin.ErrorTypeBind)
+	if ok := shouldBindBodyWithJSON(&payload, ctx); !ok {
 		return
 	}
 
 	refreshToken := payload.RefreshToken
 
-	decodedRefreshToken, err := util.DecodeRefreshToken(refreshToken)
+	decodedRefreshToken, err := jwt.DecodeRefreshToken(refreshToken)
 	if err != nil {
 		logTokenEventUse(false, decodedRefreshToken, ctx)
-		ctx.Error(err).SetType(gin.ErrorTypeBind)
+		var jwtErr *jwt.JwtDecodeError
+		if errors.As(err, &jwtErr) {
+			reason := gterrors.GtAuthErrorReasonInternalError
+			switch jwtErr.Reason {
+			case jwt.JwtErrorReasonExpired:
+				reason = gterrors.GtAuthErrorReasonExpired
+			case jwt.JwtErrorReasonInvalidSignature:
+				reason = gterrors.GtAuthErrorReasonInvalidSignature
+			case jwt.JwtErrorReasonTokenMalformed:
+				reason = gterrors.GtAuthErrorReasonTokenInvalid
+			case jwt.JwtErrorReasonUnhandled:
+				reason = gterrors.GtAuthErrorReasonInternalError
+			}
+
+			ctx.Error(gterrors.NewGtAuthError(reason, err)).SetType(util.GetGinErrorType())
+			return
+		}
+		// Should never get to here
+		ctx.Error(gterrors.ErrShouldNotHappen)
 		return
 	}
 
 	dbToken, err := ac.db.GetJwtTokenByJti(ctx, decodedRefreshToken.ID)
 	if err != nil {
 		logTokenEventUse(false, decodedRefreshToken, ctx)
-		_, file, line, _ := runtime.Caller(0)
-		
-		ctx.Error(err).SetType(gin.ErrorTypePrivate).
-		SetMeta(*util.NewErrDatabaseMeta(
-			fmt.Sprintf("%v: %d", file, line),
-			fmt.Sprintf("Queried for jwt token: %v", decodedRefreshToken.ID),
-			401,
-		))
+		logging.LogSecurityEvent(
+			logging.SecurityScoreMedium,
+			logging.SecurityEventJwtUnknown,
+			decodedRefreshToken.ID,
+		)
+		ginType := util.GetGinErrorType()
+		if errors.Is(err, pgx.ErrNoRows) {
+			ctx.Error(
+				gterrors.NewGtAuthError(gterrors.GtAuthErrorReasonTokenInvalid, err),
+			).SetType(ginType)
+			return
+		}
+
+		ctx.Error(gterrors.NewGtAuthError(
+			gterrors.GtAuthErrorReasonInternalError,
+			fmt.Errorf("failed to get token from db: %w", err),
+		)).SetType(ginType)
 		return
 	}
 	
@@ -104,39 +132,49 @@ func (ac *AuthController) Refresh(ctx *gin.Context) {
 		logTokenEventUse(false, decodedRefreshToken, ctx)
 		logging.LogSecurityEvent(
 			logging.SecurityScoreCritical,
-			logging.SecurityEventRefreshTokenReuse,
+			logging.SecurityEventJwtReuse,
 			fmt.Sprintf("value=%v,type=jwt",decodedRefreshToken.ID),
 		)
-		if err := ac.db.DeleteJwtTokenByFamily(ctx, dbToken.Family); err != nil {
+		ginType := util.GetGinErrorType()
+		if rows, err := ac.db.DeleteJwtTokenByFamily(ctx, dbToken.Family);
+		err != nil || rows == 0 {
 			_, file, line, _ := runtime.Caller(0)
-			logging.LogError(
-				err,
-				fmt.Sprintf("%v: %d", file, line),
-				fmt.Sprintf("Failed to delete jwt family '%v'", dbToken.Family),
-			)
+			errIfNil := fmt.Errorf("failed to delete jwt family: %w", err)
+			if err == nil {
+				errIfNil = fmt.Errorf("failed to delete jwt family: %v", dbToken.Family)
+			}
+			logging.LogError(errIfNil, fmt.Sprintf("%v: %d", file, line), errIfNil.Error())
+			ctx.Error(gterrors.NewGtInternalError(errIfNil,	file, 500)).SetType(ginType)
+			return
 		}
-		ctx.JSON(401, gin.H{"status": "unauthorized"})
+		ctx.Error(
+			gterrors.NewGtAuthError(
+				gterrors.GtAuthErrorReasonTokenReuse,
+				gterrors.ErrJwtRefreshReuse,
+			),
+		).SetType(ginType)
 		return
 	}
 	
+	// This should always succeed if db works correctly as dbToken has to have
+	// userID. Errors are system failures.
 	user, err := ac.db.GetUserById(ctx, dbToken.UserID)
 	if err != nil {
 		logTokenEventUse(false, decodedRefreshToken, ctx)
 		_, file, line, _ := runtime.Caller(0)
 
-		ctx.Error(err).SetType(gin.ErrorTypePrivate).
-		SetMeta(*util.NewErrDatabaseMeta(
+		ctx.Error(gterrors.NewGtInternalError(
+			fmt.Errorf("failed to get user from db: %w", err),
 			fmt.Sprintf("%v: %d", file, line),
-			fmt.Sprintf("User '%v' was not found.", dbToken.UserID),
-			401,
-		))
+			500,	
+		)).SetType(util.GetGinErrorType())
 		return
 	}
 
 	logSessionRefresh := func (success bool){logging.LogSessionEvent(
 		success,
 		ctx.FullPath(),
-		&user,
+		user.Username,
 		logging.SessionEventTypeRefresh,
 		ctx.RemoteIP(),
 	)}
@@ -150,11 +188,13 @@ func (ac *AuthController) Refresh(ctx *gin.Context) {
 		logTokenEventUse(false, decodedRefreshToken, ctx)
 		_, file, line, _ := runtime.Caller(0)
 
-		ctx.Error(err).SetType(gin.ErrorTypePrivate).
-		SetMeta(*util.NewErrInternalMeta(
-			fmt.Sprintf("%v: %d", file, line),
-			err.Error(),
-		))
+		ctx.Error(
+			gterrors.NewGtInternalError(
+				err,
+				fmt.Sprintf("%v: %d", file, line),
+				500,
+			),
+		).SetType(util.GetGinErrorType())
 		return
 	}
 
@@ -163,11 +203,14 @@ func (ac *AuthController) Refresh(ctx *gin.Context) {
 		logTokenEventUse(false, decodedRefreshToken, ctx)
 		logSessionRefresh(false)
 		_, file, line, _ := runtime.Caller(0)
-		ctx.Error(err).SetType(gin.ErrorTypePrivate).
-		SetMeta(*util.NewErrInternalMeta(
-			fmt.Sprintf("%v: %d", file, line),
-			err.Error(),
-		))
+
+		ctx.Error(
+			gterrors.NewGtInternalError(
+				err,
+				fmt.Sprintf("%v: %d", file, line),
+				500,
+			),
+		).SetType(util.GetGinErrorType())
 		return
 	}
 
@@ -203,7 +246,7 @@ func (ac *AuthController) Refresh(ctx *gin.Context) {
 	}
 
 	logSessionRefresh(true)
-	logTokenCreations([]*util.MyCustomClaims{refreshClaims,accessClaims}, ctx)
+	logTokenCreations([]*jwt.GtClaims{refreshClaims,accessClaims}, ctx)
 	logTokenEventUse(true, decodedRefreshToken, ctx)
 	ctx.JSON(http.StatusOK, gin.H{
 		"status": "ok",
@@ -214,31 +257,59 @@ func (ac *AuthController) Refresh(ctx *gin.Context) {
 
 func (ac *AuthController) Login(ctx *gin.Context) {
 	var payload *schemas.Login
-	if err:= ctx.ShouldBindBodyWithJSON(&payload); err != nil {
-		ctx.Error(err).SetType(gin.ErrorTypeBind)
+	if ok := shouldBindBodyWithJSON(&payload, ctx); !ok {
 		return
 	}
 
 	username := payload.Username
 	password := payload.Password
+	ok, err := util.ValidateUsername(username)
+	if err != nil {
+		_, file, line, _ := runtime.Caller(0)
+		ctx.Error(
+			gterrors.NewGtInternalError(
+				err,
+				fmt.Sprintf("%v: %d", file, line),
+				500,
+			),
+		).SetType(util.GetGinErrorType())
+		return
+	} else if !ok {
+		ctx.Error(
+			gterrors.NewGtAuthError(
+				gterrors.GtAuthErrorReasonUsernameInvalid,
+				errors.New("username validation failed"),
+			),
+		).SetType(util.GetGinErrorType())
+		return
+	}
 
 	user, err := ac.db.GetUserByUsername(ctx, username)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			logging.LogSecurityEvent(
 				logging.SecurityScoreLow,
-				logging.SecurityEventLoginToInvalidUsername,
-				fmt.Sprintf("value=%v,type=login",username),
+				logging.SecurityEventLoginToUnknownUsername,
+				username,
 			)
-			ctx.JSON(http.StatusUnauthorized, gin.H{"status": "invalid-credentials"})
+
+			ctx.Error(
+				gterrors.NewGtAuthError(
+					gterrors.GtAuthErrorReasonInvalidCredentials,
+					err,
+				),
+			).SetType(util.GetGinErrorType())
 			return
 		}
+
 		_, file, line, _ := runtime.Caller(0)
-		ctx.Error(err).SetType(gin.ErrorTypePrivate).
-		SetMeta(*util.NewErrInternalMeta(
-			fmt.Sprintf("%v: %d", file, line),
-			err.Error(),
-		))
+		ctx.Error(
+			gterrors.NewGtInternalError(
+				fmt.Errorf("failed to get username from db: %w", err),
+				fmt.Sprintf("%v: %d", file, line),
+				500,
+			),
+		).SetType(util.GetGinErrorType())
 		return
 	}
 
@@ -246,18 +317,22 @@ func (ac *AuthController) Login(ctx *gin.Context) {
 		logging.LogSecurityEvent(
 			logging.SecurityScoreLow,
 			logging.SecurityEventFailedLogin,
-			fmt.Sprintf("value=%v,type=login",username),
+			username,
 		)
 		logging.LogSessionEvent(
 			false,
 			ctx.FullPath(),
-			&user,
+			user.Username,
 			logging.SessionEventTypeLogin,
 			ctx.RemoteIP(),
 		)
-		ctx.JSON(http.StatusUnauthorized, gin.H{
-			"status": "invalid-credentials",
-		})
+
+		ctx.Error(
+			gterrors.NewGtAuthError(
+				gterrors.GtAuthErrorReasonInvalidCredentials,
+				errors.New("password verification failed"),
+			),
+		).SetType(util.GetGinErrorType())
 		return
 	}
 
@@ -266,14 +341,14 @@ func (ac *AuthController) Login(ctx *gin.Context) {
 		user,
 	)
 	if err != nil {
-		logTokenEventUse(false, &util.MyCustomClaims{}, ctx)
 		_, file, line, _ := runtime.Caller(0)
-
-		ctx.Error(err).SetType(gin.ErrorTypePrivate).
-		SetMeta(*util.NewErrInternalMeta(
-			fmt.Sprintf("%v: %d", file, line),
-			err.Error(),
-		))
+		ctx.Error(
+			gterrors.NewGtInternalError(
+				fmt.Errorf("failed to generate jwt: %w", err),
+				fmt.Sprintf("%v: %d", file, line),
+				500,
+			),
+		).SetType(util.GetGinErrorType())
 		return
 	}
 
@@ -286,35 +361,25 @@ func (ac *AuthController) Login(ctx *gin.Context) {
 	}
 	
 	if err := ac.db.CreateJwtToken(ctx, *args); err != nil {
-		logTokenEventUse(false, &util.MyCustomClaims{}, ctx)
-		_, file, line, _ := runtime.Caller(0)
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) {
-			ctx.Error(pgErr).SetType(gin.ErrorTypePrivate).
-			SetMeta(*util.NewErrDatabaseMeta(
+		_, file, line, _ := runtime.Caller(0)	
+		ctx.Error(
+			gterrors.NewGtInternalError(
+				fmt.Errorf("failed to save refresh jwt to db: %w", err),
 				fmt.Sprintf("%v: %d", file, line),
-				fmt.Sprintf("Unable to insert token '%v'", args.Jti),
 				500,
-			))
-		} else {		
-			ctx.Error(err).SetType(gin.ErrorTypePrivate).
-			SetMeta(*util.NewErrDatabaseMeta(
-				fmt.Sprintf("%v: %d", file, line),
-				fmt.Sprintf("Unable to insert token '%v'", args.Jti),
-				500,
-			))
-		}
+			),
+		).SetType(util.GetGinErrorType())
 		return
 	}
 
 	logging.LogSessionEvent(
 		true,
 		ctx.FullPath(),
-		&user,
+		user.Username,
 		logging.SessionEventTypeLogin,
-		ctx.RemoteIP(),
+		ctx.ClientIP(),
 	)
-	logTokenCreations([]*util.MyCustomClaims{refreshClaims,accessClaims}, ctx)
+	logTokenCreations([]*jwt.GtClaims{refreshClaims,accessClaims}, ctx)
 	ctx.JSON(http.StatusOK, gin.H{
 		"status": "ok",
 		"access_token": accessToken,
@@ -334,7 +399,7 @@ func (ac *AuthController) Logout(ctx *gin.Context) {
 
 	refreshToken := payload.RefreshToken
 
-	claims, err := util.DecodeRefreshToken(refreshToken)
+	claims, err := jwt.DecodeRefreshToken(refreshToken)
 	if err != nil {
 		// TODO Log
 		// Providing access token instead of invalid token leads to badnes
@@ -344,8 +409,9 @@ func (ac *AuthController) Logout(ctx *gin.Context) {
 		return
 	}
 
-	if err := ac.db.DeleteJwtTokenByFamily(ctx,claims.Family); err != nil {
+	if _, err := ac.db.DeleteJwtTokenByFamily(ctx,claims.Family); err != nil {
 		// TODO Log
+		// Use the _ as rows to check if something was deleted
 		// Running here might cause incomplete logout
 	}
 
@@ -413,7 +479,7 @@ func (ac *AuthController) UpdatePassword(ctx *gin.Context) {
 		})
 	}
 
-	accessToken, _, err := util.GenerateAccessToken(
+	accessToken, _, err := jwt.GenerateAccessJwt(
 		user.Username,
 		user.ID,
 		user.IsAdmin,
@@ -425,7 +491,7 @@ func (ac *AuthController) UpdatePassword(ctx *gin.Context) {
 		})
 		return
 	}
-	refreshToken, refreshClaims, err := util.GenerateRefreshToken(
+	refreshToken, refreshClaims, err := jwt.GenerateRefreshJwt(
 		user.Username,
 		user.ID,
 		user.IsAdmin,

@@ -1,7 +1,7 @@
 package logging
 
 import (
-	"go-todo/util"
+	"go-todo/util/jwt"
 	"log/slog"
 )
 
@@ -25,7 +25,7 @@ func LogTokenEvent(
 	targetPath string,
 	eventType TokenEventType,
 	srcIp string,
-	token *util.MyCustomClaims,
+	token *jwt.GtClaims,
 	) {
 		if token != nil {
 			LogAuditEvent(

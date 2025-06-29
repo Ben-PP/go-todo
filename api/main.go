@@ -23,6 +23,7 @@ var (
     ctx context.Context
 )
 
+// TODO Find all ctx.RemoteIP calls and replace with ctx.ClientIP
 
 func main() {
     appLogger := logging.GetLogger()

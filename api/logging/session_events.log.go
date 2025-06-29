@@ -1,7 +1,6 @@
 package logging
 
 import (
-	db "go-todo/db/sqlc"
 	"log/slog"
 )
 
@@ -24,10 +23,11 @@ func (s SessionEventType)String() string {
 	return "unknown"
 }
 
+// Logs user session events.
 func LogSessionEvent(
 	success bool,
 	targetPath string,
-	targetUser *db.User,
+	username string,
 	eventType SessionEventType,
 	srcIp string,
 ) {
@@ -38,7 +38,7 @@ func LogSessionEvent(
 		eventType.String(),
 		slog.Group(
 			"target",
-			slog.String("username", targetUser.Username),
+			slog.String("username", username),
 		),
 	)
 }

@@ -3,48 +3,54 @@ package middleware
 import (
 	"errors"
 	"fmt"
+	gterrors "go-todo/gt_errors"
 	"go-todo/logging"
 	"go-todo/util"
+	jwtUtil "go-todo/util/jwt"
 	"runtime"
 
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v5"
 )
 
+// Tries to extract the JWT from Authorization header. Returns an error status
+// to the client if it fails.
 func JwtAuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		token, err := util.DecodeTokenFromHeader(c)
+		token, err := jwtUtil.DecodeTokenFromHeader(c)
 		if err != nil {
-			var jwtErr *util.JwtValidationError
+			ginType := util.GetGinErrorType()
+			var jwtErr *jwtUtil.JwtDecodeError
 			if errors.As(err, &jwtErr) {
-				if errors.Is(jwtErr.OrigErr, jwt.ErrTokenExpired) ||
-				errors.Is(jwtErr.OrigErr, jwt.ErrSignatureInvalid) {
-					logging.LogTokenEvent(false, c.FullPath(), logging.TokenEventTypeUse, c.RemoteIP(), token)
-					var errType gin.ErrorType
-					if errors.Is(jwtErr.OrigErr, jwt.ErrTokenExpired) {
-						errType = gin.ErrorTypePublic
-						} else {
-							errType = gin.ErrorTypePrivate
-						}
-						c.Error(jwtErr.OrigErr).SetType(errType)
-						c.Abort()
-						return
-					} else {
-						logging.LogTokenEvent(
-							false,
-							c.FullPath(),
-							logging.TokenEventTypeUse,
-							c.RemoteIP(),
-							jwtErr.Claims,
-						)
-						_, file, line, _ := runtime.Caller(1)
-						c.Error(ErrTokenValidationFailed).
-						SetType(gin.ErrorTypePrivate).SetMeta(util.ErrInternalMeta{
-							File: fmt.Sprintf("%v: %d", file, line),
-							OrigErrMessage: err.Error(),
-						})
-					}
+				if jwtErr.Claims != nil {
+					logging.LogTokenEvent(false, c.FullPath(), logging.TokenEventTypeUse, c.RemoteIP(), jwtErr.Claims)
 				}
+				reason := gterrors.GtAuthErrorReasonInternalError
+
+				switch jwtErr.Reason {
+				case jwtUtil.JwtErrorReasonExpired:
+					reason = gterrors.GtAuthErrorReasonExpired
+				case jwtUtil.JwtErrorReasonInvalidSignature:
+					reason = gterrors.GtAuthErrorReasonInvalidSignature
+				case jwtUtil.JwtErrorReasonUnhandled:
+					reason = gterrors.GtAuthErrorReasonInternalError
+				default:
+					reason = gterrors.GtAuthErrorReasonInternalError
+				}
+				
+				c.Error(gterrors.NewGtAuthError(reason, jwtErr.Err)).SetType(ginType)
+				c.Abort()
+				return
+			} else {
+				// Should never happen
+				_, file, line, _ := runtime.Caller(0)
+				c.Error(
+					gterrors.NewGtInternalError(
+						errors.Join(gterrors.ErrShouldNotHappen, err),
+						fmt.Sprintf("%v: %d", file, line),
+						500,
+					),
+				)
+			}
 			c.Abort()
 			return
 		}

@@ -12,9 +12,10 @@ const (
 type SecurityEventName int
 
 const (
-	SecurityEventRefreshTokenReuse		SecurityEventName = iota
+	SecurityEventJwtReuse		SecurityEventName = iota
+	SecurityEventJwtUnknown
 	SecurityEventInvalidTokenSignature
-	SecurityEventLoginToInvalidUsername
+	SecurityEventLoginToUnknownUsername
 	SecurityEventFailedLogin
 )
 
@@ -24,10 +25,12 @@ func (s SecurityEventName)String() string {
 		return "failed-login"
 	case SecurityEventInvalidTokenSignature:
 		return "invalid-signature-token-use"
-	case SecurityEventLoginToInvalidUsername:
-		return "login-to-invalid-username"
-	case SecurityEventRefreshTokenReuse:
-		return "refresh-token-reuse"
+	case SecurityEventLoginToUnknownUsername:
+		return "login-to-unknown-username"
+	case SecurityEventJwtReuse:
+		return "jwt-reuse"
+	case SecurityEventJwtUnknown:
+		return "jwt-unknown"
 	}
 	return "unknown"	
 }
