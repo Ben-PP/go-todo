@@ -26,7 +26,7 @@ func ValidatePassword(password string) (bool, error) {
 }
 
 func ValidateUsername(username string) (bool, error) {
-	if length := len(username); length < 5 && length > 20 {
+	if length := len(username); length < 3 || length > 20 {
 		return false, nil
 	}
 	hasDisallowedChars, err := regexp.MatchString(`[^\p{L}\p{N}\s_-]`, username)

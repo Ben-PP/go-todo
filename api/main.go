@@ -3,13 +3,15 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
+	"runtime"
 	"time"
 
 	"github.com/gin-gonic/gin"
 
 	"go-todo/controllers"
 	db "go-todo/db/sqlc"
+	"go-todo/logging"
 	"go-todo/middleware"
 	"go-todo/routes"
 	"go-todo/util"
@@ -21,17 +23,26 @@ var (
     ctx context.Context
 )
 
+// TODO Find all ctx.RemoteIP calls and replace with ctx.ClientIP
 
 func main() {
-    config, err := util.LoadConfig(".")
+    appLogger := logging.GetLogger()
+    slog.SetDefault(appLogger)
+
+    config, err := util.GetConfig()
     if err != nil {
-        log.Fatalf("failed to load config: %v", err)
+        _, file, line, _ := runtime.Caller(1)
+        logging.LogError(err, fmt.Sprintf("%v: %d", file, line), "Failed to load config.")
+        return
     }
     
     conn, err := pgx.Connect(context.Background(), config.DbUrl)
     if err != nil {
-        fmt.Println("Error connecting to database", err)
+        _, file, line, _ := runtime.Caller(1)
+        logging.LogError(err, fmt.Sprintf("%v: %d", file, line), "Failed to connect to database.")
         return
+    } else {
+        fmt.Println("Connected to database")
     }
 
     defer conn.Close(ctx)
@@ -48,6 +59,7 @@ func main() {
     router := gin.Default()
 
     router.Use(middleware.Logger())
+    router.Use(middleware.ErrorHandlerMiddleware())
     router.Use(gin.LoggerWithFormatter(func(param gin.LogFormatterParams) string {
             return fmt.Sprintf("%s - [%s] \"%s %s %s %d \"%s\" %s\"\n",
         param.ClientIP,
@@ -68,6 +80,8 @@ func main() {
         userRoutes.UserRoute(v1)    
     }
 
+
+    slog.Info("Starting server.")
     router.Run("localhost:8000")
 }
 

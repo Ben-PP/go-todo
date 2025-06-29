@@ -13,7 +13,7 @@ UPDATE jwt_tokens
 SET is_used = TRUE
 WHERE jti = $1;
 
--- name: DeleteJwtTokenByFamily :exec
+-- name: DeleteJwtTokenByFamily :execrows
 DELETE FROM jwt_tokens
 WHERE family = $1;
 
