@@ -1,6 +1,8 @@
 package util
 
 import (
+	"errors"
+	gterrors "go-todo/gt_errors"
 	"os"
 
 	"github.com/spf13/viper"
@@ -14,7 +16,9 @@ type Config struct {
     JwtRefreshSecret        string  `mapstructure:"JWT_REFRESH_SECRET"`
 }
 
-func LoadConfig(path string) (config Config, err error) {
+var globalConfig *Config
+
+func LoadConfig(path string) (config *Config, err error) {
     viper.AddConfigPath(path)
 
     if os.Getenv("GO_ENV") == "dev" {
@@ -32,5 +36,17 @@ func LoadConfig(path string) (config Config, err error) {
     }
 
     err = viper.Unmarshal(&config)
+    return
+}
+
+func GetConfig() (config *Config, err error) {
+    if globalConfig == nil {
+        globalConfig, err = LoadConfig(".")
+        if err != nil {
+            err = errors.Join(gterrors.ErrConfigLoadFailed, err)
+            return
+        }
+    }
+    config = globalConfig
     return
 }

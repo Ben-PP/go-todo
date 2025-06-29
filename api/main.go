@@ -28,7 +28,7 @@ func main() {
     appLogger := logging.GetLogger()
     slog.SetDefault(appLogger)
 
-    config, err := util.LoadConfig(".")
+    config, err := util.GetConfig()
     if err != nil {
         _, file, line, _ := runtime.Caller(1)
         logging.LogError(err, fmt.Sprintf("%v: %d", file, line), "Failed to load config.")

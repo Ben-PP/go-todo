@@ -18,8 +18,6 @@ type MyCustomClaims struct {
 	jwt.RegisteredClaims
 }
 
-var globalConfig *Config
-
 type JwtValidationError struct  {
 	Claims *MyCustomClaims
 	OrigErr error
@@ -27,24 +25,11 @@ type JwtValidationError struct  {
 }
 
 func (e *JwtValidationError) Error() string {
-	return e.Msg
-}
-
-func getConfig() (*Config, error) {
-	if globalConfig == nil {
-		var err error
-		config, err := LoadConfig(".")
-		if err != nil {
-			return nil, fmt.Errorf("config-load-error: %w", err)
-		}
-		globalConfig = &config
-	}
-
-	return globalConfig, nil
+	return fmt.Sprintf("failed to validate token: %v", e.OrigErr.Error())
 }
 
 func generateToken(username string, userID string, isAdmin bool, isRefreshToken bool, family string) (string, *MyCustomClaims, error) {
-	config, err := getConfig()
+	config, err := GetConfig()
 	if err != nil {
 		return "", nil, err
 	}
@@ -99,7 +84,7 @@ func GenerateRefreshToken(username string, userID string, isAdmin bool, tokenFam
 // decoded with refresh secret. If all goes well, returns claims and if not,
 // returns JwtValidationError or normal error.
 func decodeToken(tokenString string, isRefreshToken bool) (*MyCustomClaims, error) {
-	config, err := getConfig()
+	config, err := GetConfig()
 	if err != nil {
 		return nil, err
 	}
@@ -127,7 +112,11 @@ func decodeToken(tokenString string, isRefreshToken bool) (*MyCustomClaims, erro
 	} else if claims, ok := decodedToken.Claims.(*MyCustomClaims); ok {
 		return claims, nil
 	} else {
-		return nil, errors.New("something went wrong decoding token")
+		return nil, &JwtValidationError{
+			Claims: &MyCustomClaims{},
+			OrigErr: errors.New("something went wrong decoding token"),
+			Msg: "error parsing jwt",
+		}
 	}
 }
 
