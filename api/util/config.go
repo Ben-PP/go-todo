@@ -18,7 +18,7 @@ type Config struct {
 
 var globalConfig *Config
 
-func LoadConfig(path string) (config *Config, err error) {
+func loadConfig(path string) (config *Config, err error) {
     viper.AddConfigPath(path)
 
     if os.Getenv("GO_ENV") == "dev" {
@@ -34,14 +34,16 @@ func LoadConfig(path string) (config *Config, err error) {
     if err != nil {
         return
     }
+    var localConfig Config
 
-    err = viper.Unmarshal(&config)
+    err = viper.Unmarshal(&localConfig)
+    config = &localConfig
     return
 }
 
 func GetConfig() (config *Config, err error) {
     if globalConfig == nil {
-        globalConfig, err = LoadConfig(".")
+        globalConfig, err = loadConfig(".")
         if err != nil {
             err = errors.Join(gterrors.ErrConfigLoadFailed, err)
             return
