@@ -1,18 +1,5 @@
 package util
 
-
-type ErrInternalMeta struct {
-	OrigErrMessage string
-	File string
-}
-
-func NewErrInternalMeta(file string, origErrMessage string) *ErrInternalMeta {
-	return &ErrInternalMeta{
-		File: file,
-		OrigErrMessage: origErrMessage,
-	}
-}
-
 type ErrDatabaseMeta struct {
 	File string
 	QueryDetails string

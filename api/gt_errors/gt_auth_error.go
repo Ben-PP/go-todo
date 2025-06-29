@@ -1,6 +1,11 @@
 package gterrors
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
+
+var ErrGtLogoutFailure = errors.New("failed to logout")
 
 type GtAuthErrorReason int
 const (

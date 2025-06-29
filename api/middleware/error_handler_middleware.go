@@ -84,6 +84,7 @@ func ErrorHandlerMiddleware() gin.HandlerFunc {
 			if isPublic {
 				detail = authError.Reason.String()
 			}
+			
 			switch authError.Reason {
 			case gterrors.GtAuthErrorReasonExpired:
 				statusMessage = statusMessages.Unauthorized
@@ -99,12 +100,24 @@ func ErrorHandlerMiddleware() gin.HandlerFunc {
 				statusMessage = statusMessages.InvalidCredentials
 			case gterrors.GtAuthErrorReasonInternalError:
 				statusMessage = statusMessages.InternalServerError
-				detail = authError.Err.Error()
+				if isPublic {
+					detail = authError.Err.Error()
+				}
 				logging.LogError(authError.Err, "unknown", authError.Error())	
 			default:
 				statusMessage = statusMessages.InternalServerError
 				status = 500
-				detail = authError.Err.Error()
+				if isPublic {
+					detail = authError.Err.Error()
+				}
+			}
+
+			// If error originates from logout event
+			if errors.Is(authError.Err, gterrors.ErrGtLogoutFailure) {
+				statusMessage = statusMessages.Unauthorized
+				if isPublic {
+					detail = authError.Err.Error()
+				}
 			}
 
 			params = &ResponseParams{
@@ -173,13 +186,22 @@ func ErrorHandlerMiddleware() gin.HandlerFunc {
 			}
 			params = &ResponseParams{500, body, ""}
 		// Catch all
+		case errors.Is(err, gterrors.ErrShouldNotHappen):
+			fmt.Println("Here we are")
+			params = &ResponseParams{
+				Status: 500,
+				StatusMessage: "should-never-happen",
+				Detail: "Congratulations! You have caused an error that should not be possible to happen :D",
+			}
 		default:
-			meta := getErrMeta[util.ErrInternalMeta](err)
-			metaPanic(meta, err)
-			logging.LogError(err.Err, meta.File, meta.OrigErrMessage)
-			params = &ResponseParams{500, statusMessages.InternalServerError, ""}
+			detail := ""
 			if isPublic {
-				params.Detail = fmt.Sprintf("%v", meta.OrigErrMessage)
+				detail = fmt.Sprintf("Unknown error: %v", err)
+			}
+			params = &ResponseParams{
+				Status: 500,
+				StatusMessage: statusMessages.InternalServerError,
+				Detail: detail,
 			}
 		}
 		

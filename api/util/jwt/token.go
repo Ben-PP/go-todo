@@ -87,7 +87,7 @@ func generateJwt(username string, userID string, isAdmin bool, isRefreshToken bo
 		username,
 		family,
 		jwt.RegisteredClaims{
-			ID: "test",//uuid.New().String(),
+			ID: uuid.New().String(),
 			Subject: userID,
 			ExpiresAt: expiry,
 			Issuer: "GO-TODO",

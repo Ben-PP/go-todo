@@ -143,8 +143,8 @@ func (ac *AuthController) Refresh(ctx *gin.Context) {
 			if err == nil {
 				errIfNil = fmt.Errorf("failed to delete jwt family: %v", dbToken.Family)
 			}
-			logging.LogError(errIfNil, fmt.Sprintf("%v: %d", file, line), errIfNil.Error())
-			ctx.Error(gterrors.NewGtInternalError(errIfNil,	file, 500)).SetType(ginType)
+			fileFull := fmt.Sprintf("%v: %d", file, line)
+			ctx.Error(gterrors.NewGtInternalError(errIfNil,	fileFull, 500)).SetType(ginType)
 			return
 		}
 		ctx.Error(
@@ -388,12 +388,10 @@ func (ac *AuthController) Login(ctx *gin.Context) {
 }
 
 func (ac *AuthController) Logout(ctx *gin.Context) {
+	// TODO Add access jwt to redis blacklist
+	// TODO Validate that access tokens user matches with the refresh tokens user
 	var payload *schemas.Refresh
-	if err := ctx.ShouldBindBodyWithJSON(&payload); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"status": "malformed-body",
-			"detail": err.Error(),
-		})
+	if ok := shouldBindBodyWithJSON(&payload, ctx); !ok {
 		return
 	}
 
@@ -401,20 +399,53 @@ func (ac *AuthController) Logout(ctx *gin.Context) {
 
 	claims, err := jwt.DecodeRefreshToken(refreshToken)
 	if err != nil {
-		// TODO Log
-		// Providing access token instead of invalid token leads to badnes
-		ctx.JSON(http.StatusUnauthorized, gin.H{
-			"status": "invalid-token",
-		})
+		logTokenEventUse(false, claims, ctx)
+		var jwtErr *jwt.JwtDecodeError
+		if errors.As(err, &jwtErr) {
+			reason := gterrors.GtAuthErrorReasonInternalError
+			switch jwtErr.Reason {
+			case jwt.JwtErrorReasonExpired:
+				reason = gterrors.GtAuthErrorReasonExpired
+			case jwt.JwtErrorReasonInvalidSignature:
+				reason = gterrors.GtAuthErrorReasonInvalidSignature
+			case jwt.JwtErrorReasonTokenMalformed:
+				reason = gterrors.GtAuthErrorReasonTokenInvalid
+			case jwt.JwtErrorReasonUnhandled:
+				reason = gterrors.GtAuthErrorReasonInternalError
+			}
+
+			ctx.Error(
+				gterrors.NewGtAuthError(
+					reason,
+					errors.Join(gterrors.ErrGtLogoutFailure, err),
+					),
+				).SetType(util.GetGinErrorType())
+			return
+		}
+		// Should never get to here
+		ctx.Error(gterrors.ErrShouldNotHappen)
 		return
 	}
 
-	if _, err := ac.db.DeleteJwtTokenByFamily(ctx,claims.Family); err != nil {
-		// TODO Log
-		// Use the _ as rows to check if something was deleted
-		// Running here might cause incomplete logout
+	if rows, err := ac.db.DeleteJwtTokenByFamily(ctx, claims.Family);
+	err != nil || rows == 0 {
+		_, file, line, _ := runtime.Caller(0)
+		errIfNil := fmt.Errorf("failed to delete jwt family: %w", err)
+		if err == nil {
+			errIfNil = fmt.Errorf("failed to delete jwt family: %v", claims.Family)
+		}
+		fileFull := fmt.Sprintf("%v: %d", file, line)
+		ctx.Error(gterrors.NewGtInternalError(errIfNil, fileFull, 500)).SetType(util.GetGinErrorType())
+		return
 	}
-
+	
+	logging.LogSessionEvent(
+		true,
+		ctx.FullPath(),
+		claims.Username,
+		logging.SessionEventTypeLogout,
+		ctx.ClientIP(),
+	)
 	ctx.JSON(http.StatusNoContent, gin.H{})
 }
 
@@ -426,11 +457,7 @@ func (ac *AuthController) UpdatePassword(ctx *gin.Context) {
 	}
 
 	var payload *schemas.UpdatePassword
-	if err := ctx.ShouldBindBodyWithJSON(&payload); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"status": "malformed-body",
-			"detail": err.Error(),
-		})
+	if ok := shouldBindBodyWithJSON(&payload, ctx); !ok {
 		return
 	}
 	
