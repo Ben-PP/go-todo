@@ -24,12 +24,14 @@ type StatusMessages struct {
 	InternalServerError	string
 	InvalidCredentials	string
 	MalformedBody		string
+	PasswordUnsatisfied	string
 	Unauthorized		string
 }
 var statusMessages = StatusMessages{
 	InternalServerError: "internal-server-error",
 	InvalidCredentials: "invalid-credentials",
 	MalformedBody: "malformed-body",
+	PasswordUnsatisfied: "password-unsatisfied",
 	Unauthorized: "unauthorized",
 }
 
@@ -76,6 +78,12 @@ func ErrorHandlerMiddleware() gin.HandlerFunc {
 				statusMessages.MalformedBody,
 				err.Error(),
 			}
+		case errors.Is(err, gterrors.ErrPasswordUnsatisfied):
+			params = &ResponseParams{
+				400,
+				statusMessages.PasswordUnsatisfied,
+				err.Error(),
+			}
 		// GtAuthError
 		case errors.As(err.Err, &authError):
 			detail := ""
@@ -99,7 +107,7 @@ func ErrorHandlerMiddleware() gin.HandlerFunc {
 			case gterrors.GtAuthErrorReasonUsernameInvalid:
 				statusMessage = statusMessages.InvalidCredentials
 			case gterrors.GtAuthErrorReasonInternalError:
-				statusMessage = statusMessages.InternalServerError
+				statusMessage = statusMessages.Unauthorized
 				if isPublic {
 					detail = authError.Err.Error()
 				}
@@ -187,7 +195,6 @@ func ErrorHandlerMiddleware() gin.HandlerFunc {
 			params = &ResponseParams{500, body, ""}
 		// Catch all
 		case errors.Is(err, gterrors.ErrShouldNotHappen):
-			fmt.Println("Here we are")
 			params = &ResponseParams{
 				Status: 500,
 				StatusMessage: "should-never-happen",

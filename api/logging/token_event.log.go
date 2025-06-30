@@ -7,11 +7,14 @@ import (
 
 type TokenEventType int
 const (
-	TokenEventTypeUse	TokenEventType	= iota
+	TokenEventTypeAccess	TokenEventType = iota
+	TokenEventTypeUse
 	TokenEventtypeCreate
 )
 func (t TokenEventType)String() string {
 	switch t {
+	case TokenEventTypeAccess:
+		return "token:access"
 	case TokenEventtypeCreate:
 		return "token:create"
 	case TokenEventTypeUse:

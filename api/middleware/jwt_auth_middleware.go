@@ -22,7 +22,7 @@ func JwtAuthMiddleware() gin.HandlerFunc {
 			var jwtErr *jwtUtil.JwtDecodeError
 			if errors.As(err, &jwtErr) {
 				if jwtErr.Claims != nil {
-					logging.LogTokenEvent(false, c.FullPath(), logging.TokenEventTypeUse, c.RemoteIP(), jwtErr.Claims)
+					logging.LogTokenEvent(false, c.FullPath(), logging.TokenEventTypeAccess, c.RemoteIP(), jwtErr.Claims)
 				}
 				reason := gterrors.GtAuthErrorReasonInternalError
 
@@ -55,7 +55,7 @@ func JwtAuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		logging.LogTokenEvent(true, c.FullPath(), logging.TokenEventTypeUse, c.RemoteIP(), token)
+		logging.LogTokenEvent(true, c.FullPath(), logging.TokenEventTypeAccess, c.RemoteIP(), token)
 
 		c.Set("x-token-username", token.Username)
 		c.Set("x-token-user-id", token.Subject)

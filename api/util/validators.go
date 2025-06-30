@@ -1,6 +1,9 @@
 package util
 
-import "regexp"
+import (
+	"fmt"
+	"regexp"
+)
 
 func ValidatePassword(password string) (bool, error) {
 	if length := len(password); length < 8 && length > 32 {
@@ -8,18 +11,15 @@ func ValidatePassword(password string) (bool, error) {
 	}
 	hasLetter, err := regexp.MatchString(`\p{L}`, password)
 	if err != nil {
-		// TODO Log
-		return false, err
+		return false, fmt.Errorf("failed to match letter regex: %w", err)
 	}
 	hasNumber, err := regexp.MatchString(`\d`, password)
 	if err != nil {
-		// TODO Log
-		return false, err
+		return false, fmt.Errorf("failed to match number regex: %w", err)
 	}
 	hasSpecialChar, err := regexp.MatchString(`\p{P}|\p{S}`, password)
 	if err != nil {
-		// TODO Log
-		return false, err
+		return false, fmt.Errorf("failed to match punctuation regex: %w", err)
 	}
 
 	return hasLetter && hasNumber && hasSpecialChar, nil
