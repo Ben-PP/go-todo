@@ -71,22 +71,12 @@ func generateTokens(family string, user db.User) (
 	return
 }
 
-func createGtInternalError(msg, file string, line int, err error, c *gin.Context) {
-	c.Error(
-		gterrors.NewGtInternalError(
-			fmt.Errorf("%v: %w", msg, err),
-			fmt.Sprintf("%v: %d", file, line),
-			500,
-		),
-	).SetType(util.GetGinErrorType())
-}
-
 func failedToGenerateJwtError(err error, file string, line int, c *gin.Context) {
-	createGtInternalError("failed to generate jwt", file, line, err, c)
+	ctxAddGtInternalError("failed to generate jwt", file, line, err, c)
 }
 
 func failedToSaveJwtToDbError(err error, file string, line int, c *gin.Context) {
-	createGtInternalError("failed to save jwt to db", file, line, err, c)
+	ctxAddGtInternalError("failed to save jwt to db", file, line, err, c)
 }
 			
 func (ac *AuthController) Refresh(ctx *gin.Context) {
@@ -160,8 +150,7 @@ func (ac *AuthController) Refresh(ctx *gin.Context) {
 			if err == nil {
 				errIfNil = fmt.Errorf("failed to delete jwt family: %v", dbToken.Family)
 			}
-			fileFull := fmt.Sprintf("%v: %d", file, line)
-			ctx.Error(gterrors.NewGtInternalError(errIfNil,	fileFull, 500)).SetType(ginType)
+			ctxAddGtInternalError("", file, line, errIfNil, ctx)
 			return
 		}
 		ctx.Error(
@@ -175,16 +164,11 @@ func (ac *AuthController) Refresh(ctx *gin.Context) {
 	
 	// This should always succeed if db works correctly as dbToken has to have
 	// userID. Errors are system failures.
-	user, err := ac.db.GetUserById(ctx, dbToken.UserID)
+	user, err := ac.db.GetUserById(ctx, "testsss")//dbToken.UserID)
 	if err != nil {
 		logTokenEventUse(false, decodedRefreshToken, ctx)
 		_, file, line, _ := runtime.Caller(0)
-
-		ctx.Error(gterrors.NewGtInternalError(
-			fmt.Errorf("failed to get user from db: %w", err),
-			fmt.Sprintf("%v: %d", file, line),
-			500,	
-		)).SetType(util.GetGinErrorType())
+		ctxAddGtInternalError("failed to get user from db", file, line, err, ctx)
 		return
 	}
 
@@ -213,14 +197,7 @@ func (ac *AuthController) Refresh(ctx *gin.Context) {
 		logTokenEventUse(false, decodedRefreshToken, ctx)
 		logSessionRefresh(false)
 		_, file, line, _ := runtime.Caller(0)
-
-		ctx.Error(
-			gterrors.NewGtInternalError(
-				err,
-				fmt.Sprintf("%v: %d", file, line),
-				500,
-			),
-		).SetType(util.GetGinErrorType())
+		ctxAddGtInternalError("", file, line, err, ctx)
 		return
 	}
 
@@ -261,13 +238,7 @@ func (ac *AuthController) Login(ctx *gin.Context) {
 	ok, err := util.ValidateUsername(username)
 	if err != nil {
 		_, file, line, _ := runtime.Caller(0)
-		ctx.Error(
-			gterrors.NewGtInternalError(
-				err,
-				fmt.Sprintf("%v: %d", file, line),
-				500,
-			),
-		).SetType(util.GetGinErrorType())
+		ctxAddGtInternalError("", file, line, err, ctx)
 		return
 	} else if !ok {
 		ctx.Error(
@@ -298,13 +269,7 @@ func (ac *AuthController) Login(ctx *gin.Context) {
 		}
 
 		_, file, line, _ := runtime.Caller(0)
-		ctx.Error(
-			gterrors.NewGtInternalError(
-				fmt.Errorf("failed to get username from db: %w", err),
-				fmt.Sprintf("%v: %d", file, line),
-				500,
-			),
-		).SetType(util.GetGinErrorType())
+		ctxAddGtInternalError("failed to get username from db", file, line, err, ctx)
 		return
 	}
 
@@ -417,8 +382,7 @@ func (ac *AuthController) Logout(ctx *gin.Context) {
 		if err == nil {
 			errIfNil = fmt.Errorf("failed to delete jwt family: %v", claims.Family)
 		}
-		fileFull := fmt.Sprintf("%v: %d", file, line)
-		ctx.Error(gterrors.NewGtInternalError(errIfNil, fileFull, 500)).SetType(util.GetGinErrorType())
+		ctxAddGtInternalError("", file, line, errIfNil, ctx)
 		return
 	}
 	
@@ -436,13 +400,7 @@ func (ac *AuthController) UpdatePassword(ctx *gin.Context) {
 	userID,_,_, err := util.GetTokenVariables(ctx)
 	if err != nil {
 		_, file, line, _ := runtime.Caller(0)
-		ctx.Error(
-			gterrors.NewGtInternalError(
-				fmt.Errorf("failed to get claims from jwt: %w", err),
-				fmt.Sprintf("%v: %d", file, line),
-				500,
-			),
-		).SetType(util.GetGinErrorType())
+		ctxAddGtInternalError("failed to get claims from jwt", file, line, err, ctx)
 		return
 	}
 
@@ -454,13 +412,7 @@ func (ac *AuthController) UpdatePassword(ctx *gin.Context) {
 	isPasswdValid, err := util.ValidatePassword(payload.NewPassword)
 	if err != nil {
 		_, file, line, _ := runtime.Caller(0)
-		ctx.Error(
-			gterrors.NewGtInternalError(
-				fmt.Errorf("error validatig password: %w", err),
-				fmt.Sprintf("%v: %d", file, line),
-				500,
-			),
-		).SetType(util.GetGinErrorType())
+		ctxAddGtInternalError("error validating password", file, line, err, ctx)
 		return
 	} else if !isPasswdValid {
 		ctx.Error(gterrors.ErrPasswordUnsatisfied).SetType(gin.ErrorTypePublic)
@@ -471,11 +423,7 @@ func (ac *AuthController) UpdatePassword(ctx *gin.Context) {
 	user, err := ac.db.GetUserById(ctx, userID)
 	if err != nil {
 		_, file, line, _ := runtime.Caller(0)
-		ctx.Error(gterrors.NewGtInternalError(
-			fmt.Errorf("failed to get user from db: %w", err),
-			fmt.Sprintf("%v: %d", file, line),
-			500,	
-		)).SetType(util.GetGinErrorType())
+		ctxAddGtInternalError("failed to get user from db", file, line, err, ctx)
 		return
 	}
 
@@ -493,13 +441,7 @@ func (ac *AuthController) UpdatePassword(ctx *gin.Context) {
 	newPasswordHash, err := util.HashPassword(payload.NewPassword)
 	if err != nil {
 		_, file, line, _ := runtime.Caller(0)
-		ctx.Error(
-			gterrors.NewGtInternalError(
-				fmt.Errorf("failed to hash new password: %w", err),
-				fmt.Sprintf("%v: %d", file, line),
-				500,
-			),
-		).SetType(util.GetGinErrorType())
+		ctxAddGtInternalError("failed to hash new password", file, line, err, ctx)
 		return
 	}
 
@@ -510,13 +452,7 @@ func (ac *AuthController) UpdatePassword(ctx *gin.Context) {
 
 	if err := ac.db.UpdateUserPassword(ctx, *args); err != nil {
 		_, file, line, _ := runtime.Caller(0)
-		ctx.Error(
-			gterrors.NewGtInternalError(
-				fmt.Errorf("failed to update password to db: %w", err),
-				fmt.Sprintf("%v: %d", file, line),
-				500,
-			),
-		)
+		ctxAddGtInternalError("failed to update password to db", file, line, err, ctx)
 		return
 	}
 
@@ -551,13 +487,7 @@ func (ac *AuthController) UpdatePassword(ctx *gin.Context) {
 
 	if err := ac.db.DeleteJwtTokenByUserIdExcludeFamily(ctx, *deleteArgs); err != nil {
 		_, file, line, _ := runtime.Caller(0)
-		ctx.Error(
-			gterrors.NewGtInternalError(
-				fmt.Errorf("failed to remove old refresh jwts: %w", err),
-				fmt.Sprintf("%v: %d", file, line),
-				500,
-			),
-		).SetType(util.GetGinErrorType())
+		ctxAddGtInternalError("failed to remove old refresh jwts", file, line, err, ctx)
 	}
 
 	ctx.JSON(http.StatusOK, gin.H{
