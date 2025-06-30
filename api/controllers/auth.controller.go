@@ -118,7 +118,9 @@ func (ac *AuthController) Refresh(ctx *gin.Context) {
 		logging.LogSecurityEvent(
 			logging.SecurityScoreMedium,
 			logging.SecurityEventJwtUnknown,
+			ctx.FullPath(),
 			decodedRefreshToken.ID,
+			ctx.ClientIP(),
 		)
 		ginType := util.GetGinErrorType()
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -140,7 +142,9 @@ func (ac *AuthController) Refresh(ctx *gin.Context) {
 		logging.LogSecurityEvent(
 			logging.SecurityScoreCritical,
 			logging.SecurityEventJwtReuse,
-			fmt.Sprintf("value=%v,type=jwt",decodedRefreshToken.ID),
+			ctx.FullPath(),
+			decodedRefreshToken.ID,
+			ctx.ClientIP(),
 		)
 		ginType := util.GetGinErrorType()
 		if rows, err := ac.db.DeleteJwtTokenByFamily(ctx, dbToken.Family);
@@ -256,7 +260,9 @@ func (ac *AuthController) Login(ctx *gin.Context) {
 			logging.LogSecurityEvent(
 				logging.SecurityScoreLow,
 				logging.SecurityEventLoginToUnknownUsername,
+			ctx.FullPath(),
 				username,
+				ctx.ClientIP(),
 			)
 
 			ctx.Error(
@@ -277,7 +283,9 @@ func (ac *AuthController) Login(ctx *gin.Context) {
 		logging.LogSecurityEvent(
 			logging.SecurityScoreLow,
 			logging.SecurityEventFailedLogin,
+			ctx.FullPath(),
 			username,
+			ctx.ClientIP(),
 		)
 		logging.LogSessionEvent(
 			false,

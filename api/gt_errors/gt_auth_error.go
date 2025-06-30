@@ -14,6 +14,7 @@ const (
 	GtAuthErrorReasonInvalidCredentials
 	GtAuthErrorReasonInvalidSignature
 	GtAuthErrorReasonTokenInvalid
+	GtAuthErrorReasonJwtUserNotFound
 	GtAuthErrorReasonTokenReuse
 	GtAuthErrorReasonUsernameInvalid
 )
@@ -22,6 +23,8 @@ func (t GtAuthErrorReason) String() string {
 	switch t {
 	case GtAuthErrorReasonExpired:
 		return "token-expired"
+	case GtAuthErrorReasonJwtUserNotFound:
+		return "jwt-user-not-found"
 	case GtAuthErrorReasonTokenInvalid:
 		return "token-invalid"
 	case GtAuthErrorReasonInvalidCredentials:

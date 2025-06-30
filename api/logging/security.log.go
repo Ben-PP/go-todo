@@ -12,19 +12,23 @@ const (
 type SecurityEventName int
 
 const (
-	SecurityEventJwtReuse		SecurityEventName = iota
+	SecurityEventFailedLogin			SecurityEventName = iota
+	SecurityEventForbiddenAction
+	SecurityEventJwtSignatureInvalid
+	SecurityEventJwtReuse
+	SecurityEventJwtUserUnknown
 	SecurityEventJwtUnknown
-	SecurityEventInvalidTokenSignature
 	SecurityEventLoginToUnknownUsername
-	SecurityEventFailedLogin
 )
 
 func (s SecurityEventName)String() string {
 	switch s {
 	case SecurityEventFailedLogin:
 		return "failed-login"
-	case SecurityEventInvalidTokenSignature:
-		return "invalid-signature-token-use"
+	case SecurityEventJwtSignatureInvalid:
+		return "jwt-signature-invalid-use"
+	case SecurityEventJwtUserUnknown:
+		return "jwt-user-not-found"
 	case SecurityEventLoginToUnknownUsername:
 		return "login-to-unknown-username"
 	case SecurityEventJwtReuse:
@@ -38,17 +42,21 @@ func (s SecurityEventName)String() string {
 func LogSecurityEvent(
 	score SecurityScore,
 	eventName SecurityEventName,
+	targetPath string,
 	target string,
+	violator string,
 	) {
 	log(
 		slog.LevelInfo,
 		"Security event has happened",
 		"security",
 		slog.Int("score", int(score)),
+		slog.String("target_path", targetPath),
 		slog.Group(
 			"event",
 			slog.String("name", eventName.String()),
 			slog.String("target", target),
+			slog.String("violator", violator),
 		),
 	)
 }

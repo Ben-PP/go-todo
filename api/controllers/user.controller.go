@@ -5,12 +5,16 @@ import (
 	"errors"
 	"fmt"
 	db "go-todo/db/sqlc"
+	gterrors "go-todo/gt_errors"
+	"go-todo/logging"
 	"go-todo/schemas"
 	"go-todo/util"
 	"net/http"
+	"runtime"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
@@ -25,43 +29,38 @@ func NewUserController(db *db.Queries, ctx context.Context) *UserController {
 
 func (uc *UserController) CreateUser(ctx *gin.Context) {
 	var payload *schemas.CreateUser
-	if err := ctx.ShouldBindJSON(&payload); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"status": "malformed-body",
-			"detail": err.Error(),
-		})
-		return
-	}
-
-	users, err := uc.db.GetAllUsers(ctx)
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"status": "internal-server-error",
-			"detail": err.Error(),
-		})
+	if ok := shouldBindBodyWithJSON(&payload, ctx); !ok {
 		return
 	}
 
 	makeAdmin := false
+	users, err := uc.db.GetAllUsers(ctx)
+	if err != nil {
+		_, file, line, _ := runtime.Caller(0)
+		ctxAddGtInternalError("failed to get users from db", file, line, err, ctx)
+		return
+	}
 	if len(users) == 0 {
 		makeAdmin = true
 	}
 
 	isPasswdValid, err := util.ValidatePassword(payload.Password)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"status": "internal-server-error"})
+		_, file, line, _ := runtime.Caller(0)
+		ctxAddGtInternalError("failed to validate new password", file, line, err, ctx)
 		return
 	} else if !isPasswdValid {
-		ctx.JSON(http.StatusBadRequest, gin.H{"status": "password-criteria-unmet"})
+		ctx.Error(gterrors.ErrPasswordUnsatisfied).SetType(gin.ErrorTypePublic)
 		return
 	}
 
 	isUsernameValid, err := util.ValidateUsername(payload.Username)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"status": "internal-server-error"})
+		_, file, line, _ := runtime.Caller(0)
+		ctxAddGtInternalError("failed to validate new username", file, line, err, ctx)
 		return
 	} else if !isUsernameValid {
-		ctx.JSON(http.StatusBadRequest, gin.H{"status": "username-criteria-unmet"})
+		ctx.Error(gterrors.ErrUsernameUnsatisfied).SetType(gin.ErrorTypePublic)
 		return
 	}
 
@@ -69,10 +68,8 @@ func (uc *UserController) CreateUser(ctx *gin.Context) {
 	passwd := payload.Password
 	passwdHash,err := util.HashPassword(passwd)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"status": "unable-to-hash-password",
-			"detail": err.Error(),
-		})
+		_, file, line, _ := runtime.Caller(0)
+		ctxAddGtInternalError("failed to hash new password", file, line, err, ctx)
 		return
 	}
 
@@ -86,75 +83,89 @@ func (uc *UserController) CreateUser(ctx *gin.Context) {
 	user, err := uc.db.CreateUser(ctx, *args)
 	if err != nil {
 		var pgErr *pgconn.PgError
+		errMessage := "failed to create user"
 		if errors.As(err, &pgErr) {
 			switch pgErr.Code {
 			case "23505":
-				ctx.JSON(http.StatusConflict, gin.H{
-					"status": "unique-violation",
-					"detail": pgErr.Detail,
-				})
+				ctx.Error(gterrors.ErrUniqueViolation).SetType(gin.ErrorTypePublic)
 			default:
-				ctx.JSON(http.StatusInternalServerError, gin.H{
-					"status": "unable-to-create-user",
-					"detail": pgErr.Error(),
-				})
+				_, file, line, _ := runtime.Caller(0)
+				ctxAddGtInternalError(errMessage, file, line, err, ctx)
 			}
 			return
 		}
-		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"status": "unable-to-create-user",
-			"detail": err.Error(),
-		})
+		_, file, line, _ := runtime.Caller(0)
+		ctxAddGtInternalError(errMessage, file, line, err, ctx)
 		return
 	}
 
+	logging.LogObjectEvent(
+		ctx.FullPath(),
+		ctx.ClientIP(),
+		logging.ObjectEventCreate,
+		nil,
+		&user,
+		nil,
+		logging.ObjectEventSubUser,
+	)
 	ctx.JSON(http.StatusCreated, gin.H{"status": "created", "user": user})
 }
 
 func (uc *UserController) UpdateUser(ctx *gin.Context) {
 	tokenUserId, _, _, err := util.GetTokenVariables(ctx)
 	if err != nil {
-		ctx.JSON(http.StatusUnauthorized, gin.H{"status": "invalid-token"})
+		_, file, line, _ := runtime.Caller(0)
+		ctxAddGtInternalError("failed to get claims from jwt", file, line, err, ctx)
 		return
 	}
 
 	reqUser, err := uc.db.GetUserById(ctx, tokenUserId)
 	if err != nil {
-		ctx.JSON(http.StatusUnauthorized, gin.H{"status": "invalid-token"})
+		ctx.Error(
+			gterrors.NewGtAuthError(
+				gterrors.GtAuthErrorReasonTokenInvalid,
+				err,
+			),
+		).SetType(util.GetGinErrorType())
 		return
 	}
 
 	userIDToUpdate := ctx.Param("id")
 
 	if userIDToUpdate != reqUser.ID && !reqUser.IsAdmin {
-		ctx.JSON(http.StatusForbidden, gin.H{
-			"status": "forbidden",
-			"detail": "Only admin can modify other users.",
-		})
+		logging.LogSecurityEvent(
+			logging.SecurityScoreHigh,
+			logging.SecurityEventForbiddenAction,
+			ctx.FullPath(),
+			userIDToUpdate,
+			reqUser.Username,
+		)
+		ctx.Error(gterrors.ErrForbidden).SetType(gin.ErrorTypePublic)
 		return
 	}
 	var payload *schemas.UpdateUser
-	if err := ctx.ShouldBindJSON(&payload); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"status": "malformed-body",
-			"detail": err.Error(),
-		})
+	if ok := shouldBindBodyWithJSON(&payload, ctx); !ok {
 		return
 	}
 	isUsernameValid, err := util.ValidateUsername(payload.Username)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"status": "internal-server-error"})
+		_, file, line, _ := runtime.Caller(0)
+		ctxAddGtInternalError("failed to validate new username", file, line, err, ctx)
 		return
 	} else if !isUsernameValid {
-		ctx.JSON(http.StatusBadRequest, gin.H{"status": "username-criteria-unmet"})
+		ctx.Error(gterrors.ErrUsernameUnsatisfied).SetType(gin.ErrorTypePublic)
 		return
 	}
 
 	if !reqUser.IsAdmin && *payload.IsAdmin {
-		ctx.JSON(http.StatusForbidden, gin.H{
-			"status": "forbidden",
-			"detail": "Only admin can promote user to admin.",
-		})
+		logging.LogSecurityEvent(
+			logging.SecurityScoreHigh,
+			logging.SecurityEventForbiddenAction,
+			ctx.FullPath(),
+			userIDToUpdate,
+			reqUser.Username,
+		)
+		ctx.Error(gterrors.ErrForbidden).SetType(gin.ErrorTypePublic)
 		return
 	}
 
@@ -162,25 +173,12 @@ func (uc *UserController) UpdateUser(ctx *gin.Context) {
 	if userIDToUpdate != reqUser.ID {
 		userFromDB, err := uc.db.GetUserById(ctx, userIDToUpdate)
 		if err != nil {
-			if err.Error() == "no rows in result set" {
-				ctx.JSON(http.StatusNotFound, gin.H{
-					"status": "user-not-found",
-					"detail": "User "+userIDToUpdate+" was not found",
-				})
+			if errors.Is(err, pgx.ErrNoRows) {
+				ctx.Error(gterrors.ErrNotFound).SetType(gin.ErrorTypePublic)
 				return
 			}
-			var pgErr *pgconn.PgError
-			if errors.As(err, &pgErr) {
-				switch pgErr.Code {
-				default:
-					ctx.JSON(http.StatusInternalServerError, gin.H{
-						"status": "internal-server-error",
-						"detail": pgErr.Error(),
-					})
-				}
-				return
-			}
-			ctx.JSON(http.StatusInternalServerError, gin.H{"status": "internal-server-error", "detail": err.Error()})
+			_, file, line, _ := runtime.Caller(0)
+			ctxAddGtInternalError("could not get user from db", file, line, err, ctx)
 			return
 		}
 		oldUser = &userFromDB
@@ -188,6 +186,15 @@ func (uc *UserController) UpdateUser(ctx *gin.Context) {
 		oldUser = &reqUser
 	}
 	if oldUser.Username == payload.Username && oldUser.IsAdmin == *payload.IsAdmin {
+		logging.LogObjectEvent(
+			ctx.FullPath(),
+			ctx.ClientIP(),
+			logging.ObjectEventUpdate,
+			&reqUser,
+			&oldUser,
+			&oldUser,
+			logging.ObjectEventSubUser,
+		)
 		ctx.JSON(http.StatusNoContent, gin.H{})
 		return
 	}
@@ -201,46 +208,46 @@ func (uc *UserController) UpdateUser(ctx *gin.Context) {
 	updatedUser, err := uc.db.UpdateUser(ctx, *args)
 	if err != nil {
 		var pgErr *pgconn.PgError
+		errMessage := "failed to update user"
 		if errors.As(err, &pgErr) {
 			fmt.Println("pgErr: ",pgErr)
 			switch pgErr.Code {
 			case "23505":
-				ctx.JSON(http.StatusConflict, gin.H{
-					"status": "unique-violation",
-					"detail": pgErr.Detail,
-				})
+				ctx.Error(gterrors.ErrUniqueViolation).SetType(gin.ErrorTypePublic)
 			default:
-				ctx.JSON(http.StatusInternalServerError, gin.H{
-					"status": "internal-server-error",
-					"detail": pgErr.Error(),
-				})
+				_, file, line, _ := runtime.Caller(0)
+				ctxAddGtInternalError(errMessage, file, line, err, ctx)
 			}
 			return
 		}
-		
-		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"status": "internal-server-error",
-			"detail": err.Error(),
-		})
+		_, file, line, _ := runtime.Caller(0)
+		ctxAddGtInternalError(errMessage, file, line, err, ctx)
 		return
 	}
 
 	if oldUser.IsAdmin != updatedUser.IsAdmin {
 		if err := uc.db.DeleteJwtTokensByUserId(ctx, updatedUser.ID); err != nil {
-			// TODO Log this as this would be bad if ever happened or user has not logged in once yet
 			var pgErr *pgconn.PgError
+			errMessage := "failed to delete old jwts"
 			if errors.As(err, &pgErr) {
 				fmt.Println("pgErr: ",pgErr)
 				switch pgErr.Code {
 				default:
-					ctx.JSON(http.StatusInternalServerError, gin.H{
-						"status": "internal-server-error",
-						"detail": pgErr.Error(),
-					})
+					_, file, line, _ := runtime.Caller(0)
+					logging.LogError(
+						fmt.Errorf("%s: %w", errMessage, err),
+						fmt.Sprintf("%v: %d", file, line),
+						err.Error(),
+					)
 				}
 				return
 			}
-			fmt.Println("Error: ",err.Error())
+			_, file, line, _ := runtime.Caller(0)
+			logging.LogError(
+				fmt.Errorf("%s: %w", errMessage, err),
+				fmt.Sprintf("%v: %d", file, line),
+				err.Error(),
+			)
 		}
 	}
 
@@ -252,30 +259,48 @@ func (uc *UserController) UpdateUser(ctx *gin.Context) {
 
 // Controller for deleting users
 func (uc *UserController) DeleteUser(ctx *gin.Context) {
-	tokenUserId, _, _, err := util.GetTokenVariables(ctx)
+	tokenUserId, tokenUserName, _, err := util.GetTokenVariables(ctx)
 	if err != nil {
-		ctx.JSON(http.StatusUnauthorized, gin.H{"status": "invalid-token"})
+		_, file, line, _ := runtime.Caller(0)
+		ctxAddGtInternalError("failed to get claims from jwt", file, line, err, ctx)
 		return
 	}
 
 	reqUser, err := uc.db.GetUserById(ctx, tokenUserId)
 	if err != nil {
-		ctx.JSON(http.StatusUnauthorized, gin.H{"status": "invalid-token"})
+		logging.LogSecurityEvent(
+			logging.SecurityScoreLow,
+			logging.SecurityEventJwtUserUnknown,
+			ctx.FullPath(),
+			tokenUserName,
+			ctx.ClientIP(),
+		)
+		ctx.Error(
+			gterrors.NewGtAuthError(
+				gterrors.GtAuthErrorReasonJwtUserNotFound,
+				fmt.Errorf("could not get user from db: %w", err),
+			),
+		).SetType(util.GetGinErrorType())
 		return
 	}
 
 	userIDToDelete := ctx.Param("id")
 	if userIDToDelete != reqUser.ID && !reqUser.IsAdmin {
-		ctx.JSON(http.StatusForbidden, gin.H{
-			"status": "forbidden",
-			"detail": "Only admins can delete other users.",
-		})
+		logging.LogSecurityEvent(
+			logging.SecurityScoreMedium,
+			logging.SecurityEventForbiddenAction,
+			ctx.FullPath(),
+			userIDToDelete,
+			reqUser.Username,
+		)
+		ctx.Error(gterrors.ErrForbidden).SetType(util.GetGinErrorType())
 		return
 	}
 
 	rows, err := uc.db.DeleteUser(ctx, userIDToDelete)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"status": "internal-server-error"})
+		_, file, line, _ := runtime.Caller(0)
+		ctxAddGtInternalError("could not delete user", file, line, err, ctx)
 		return
 	}
 	if rows == 0 {
@@ -283,5 +308,14 @@ func (uc *UserController) DeleteUser(ctx *gin.Context) {
 		return
 	}
 
+	logging.LogObjectEvent(
+		ctx.FullPath(),
+		ctx.ClientIP(),
+		logging.ObjectEventDelete,
+		&reqUser,
+		"deleted",
+		userIDToDelete,
+		logging.ObjectEventSubUser,
+	)
 	ctx.JSON(http.StatusNoContent, gin.H{})
 }

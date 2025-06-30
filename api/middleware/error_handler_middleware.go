@@ -5,13 +5,10 @@ import (
 	"fmt"
 	gterrors "go-todo/gt_errors"
 	"go-todo/logging"
-	"go-todo/util"
 	"runtime"
 
 	"github.com/gin-gonic/gin"
 	_ "github.com/golang-jwt/jwt/v5"
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
 )
 
 type ResponseParams struct {
@@ -20,39 +17,41 @@ type ResponseParams struct {
 	Detail string
 }
 
-type StatusMessages struct {
-	InternalServerError	string
-	InvalidCredentials	string
-	MalformedBody		string
-	PasswordUnsatisfied	string
-	Unauthorized		string
-}
-var statusMessages = StatusMessages{
-	InternalServerError: "internal-server-error",
-	InvalidCredentials: "invalid-credentials",
-	MalformedBody: "malformed-body",
-	PasswordUnsatisfied: "password-unsatisfied",
-	Unauthorized: "unauthorized",
-}
+type StatusMessage int
+const (
+	StatusMessageForbidden			StatusMessage = iota
+	StatusMessageInternalServerError
+	StatusMessageInvalidCredentials
+	StatusMessageMalformedBody
+	StatusMessageNotFound
+	StatusMessagePasswordUnsatisfied
+	StatusMessageUnauthorized
+	StatusMessageUniqueViolation
+	StatusMessageUsernameUnsatisfied
+)
 
-func getErrMeta[T any](err *gin.Error) (*T) {
-	var meta *T
-	if errMeta, ok := err.Meta.(T); ok {
-		meta = &errMeta
+func (t StatusMessage) String() string {
+	switch t {
+		case StatusMessageForbidden:
+			return "forbidden"
+		case StatusMessageInternalServerError:
+			return "internal-server-error"
+		case StatusMessageInvalidCredentials:
+			return "invalid-credentials"
+		case StatusMessageMalformedBody:
+			return "malformed-body"
+		case StatusMessageNotFound:
+			return "not-found"
+		case StatusMessagePasswordUnsatisfied:
+			return "password-unsatisfied"
+		case StatusMessageUnauthorized:
+			return "unauthorized"
+		case StatusMessageUniqueViolation:
+			return "unique-violation"
+		case StatusMessageUsernameUnsatisfied:
+			return "username-unsatisfied"
 	}
-	return meta
-}
-
-func metaPanic[T any](meta *T, err *gin.Error) {
-	if meta == nil {
-		_, file, line, _ := runtime.Caller(1)
-		logging.LogError(
-			errors.New("MetaPanic: err.Meta was not provided"),
-			fmt.Sprintf("%v: %d", file, line),
-			err.Error(),
-		)
-		panic("err.Meta is nil!")
-	}
+	return "unknown-status-message"
 }
 
 // Handles the errors passed to the gin context and responds accordingly.
@@ -67,23 +66,22 @@ func ErrorHandlerMiddleware() gin.HandlerFunc {
 		err := c.Errors.Last()
 		isPublic := err.Type == gin.ErrorTypePublic
 		var params *ResponseParams
-		var pgErr *pgconn.PgError
 		var authError *gterrors.GtAuthError
 		var internalError *gterrors.GtInternalError
 		switch {
 		// Malformed requests
 		case err.Type == gin.ErrorTypeBind:
-			params = &ResponseParams{
-				400,
-				statusMessages.MalformedBody,
-				err.Error(),
-			}
+			params = &ResponseParams{400, StatusMessageMalformedBody.String(),	err.Error()}
 		case errors.Is(err, gterrors.ErrPasswordUnsatisfied):
-			params = &ResponseParams{
-				400,
-				statusMessages.PasswordUnsatisfied,
-				err.Error(),
-			}
+			params = &ResponseParams{400, StatusMessagePasswordUnsatisfied.String(), err.Error()}
+		case errors.Is(err, gterrors.ErrUsernameUnsatisfied):
+			params = &ResponseParams{400, StatusMessageUsernameUnsatisfied.String(), err.Error()}
+		case errors.Is(err, gterrors.ErrForbidden):
+			params = &ResponseParams{403, StatusMessageForbidden.String(), err.Error()}
+		case errors.Is(err, gterrors.ErrUniqueViolation):
+			params = &ResponseParams{409, StatusMessageUniqueViolation.String(), err.Error()}
+		case errors.Is(err, gterrors.ErrNotFound):
+			params = &ResponseParams{404, StatusMessageNotFound.String(), err.Error()}
 		// GtAuthError
 		case errors.As(err.Err, &authError):
 			detail := ""
@@ -95,25 +93,27 @@ func ErrorHandlerMiddleware() gin.HandlerFunc {
 			
 			switch authError.Reason {
 			case gterrors.GtAuthErrorReasonExpired:
-				statusMessage = statusMessages.Unauthorized
+				statusMessage = StatusMessageUnauthorized.String()
+			case gterrors.GtAuthErrorReasonJwtUserNotFound:
+				statusMessage = StatusMessageUnauthorized.String()
 			case gterrors.GtAuthErrorReasonInvalidCredentials:
-				statusMessage = statusMessages.InvalidCredentials
+				statusMessage = StatusMessageInvalidCredentials.String()
 			case gterrors.GtAuthErrorReasonInvalidSignature:
-				statusMessage = statusMessages.Unauthorized
+				statusMessage = StatusMessageUnauthorized.String()
 			case gterrors.GtAuthErrorReasonTokenInvalid:
-				statusMessage = statusMessages.Unauthorized
+				statusMessage = StatusMessageUnauthorized.String()
 			case gterrors.GtAuthErrorReasonTokenReuse:
-				statusMessage = statusMessages.Unauthorized
+				statusMessage = StatusMessageUnauthorized.String()
 			case gterrors.GtAuthErrorReasonUsernameInvalid:
-				statusMessage = statusMessages.InvalidCredentials
+				statusMessage = StatusMessageInvalidCredentials.String()
 			case gterrors.GtAuthErrorReasonInternalError:
-				statusMessage = statusMessages.Unauthorized
+				statusMessage = StatusMessageUnauthorized.String()
 				if isPublic {
 					detail = authError.Err.Error()
 				}
 				logging.LogError(authError.Err, "unknown", authError.Error())	
 			default:
-				statusMessage = statusMessages.InternalServerError
+				statusMessage = StatusMessageInternalServerError.String()
 				status = 500
 				if isPublic {
 					detail = authError.Err.Error()
@@ -122,7 +122,7 @@ func ErrorHandlerMiddleware() gin.HandlerFunc {
 
 			// If error originates from logout event
 			if errors.Is(authError.Err, gterrors.ErrGtLogoutFailure) {
-				statusMessage = statusMessages.Unauthorized
+				statusMessage = StatusMessageUnauthorized.String()
 				if isPublic {
 					detail = authError.Err.Error()
 				}
@@ -143,56 +143,15 @@ func ErrorHandlerMiddleware() gin.HandlerFunc {
 			var statusMessage string
 			switch internalError.ResponseStatus {
 			case 500:
-				statusMessage = statusMessages.InternalServerError
+				statusMessage = StatusMessageInternalServerError.String()
 			default:
-				statusMessage = statusMessages.InternalServerError
+				statusMessage = StatusMessageInternalServerError.String()
 			}
 			params = &ResponseParams{
 				Status: internalError.ResponseStatus,
 				StatusMessage: statusMessage,
 				Detail: detail,
 			}
-		// Jwt decoding errors
-		/*case errors.Is(err.Err, jwt.ErrSignatureInvalid):
-			logging.LogSecurityEvent(logging.SecurityScoreLow, logging.SecurityEventInvalidTokenSignature, "jwt-tokens")
-			params = &ResponseParams{401,statusMessages.Unauthorized, "token-invalid"}
-		case errors.Is(err.Err, jwt.ErrTokenMalformed):
-			params = &ResponseParams{400, statusMessages.MalformedBody, "token-malformed"}
-		case errors.Is(err.Err, ErrTokenValidationFailed):
-			meta := getErrMeta[util.ErrInternalMeta](err)
-			metaPanic(meta, err)
-			logging.LogError(err.Err, meta.File, meta.OrigErrMessage)
-			params = &ResponseParams{401, statusMessages.Unauthorized, "token-invalid"}*/
-		// Jwt generating errors
-		// Database errors
-		case errors.Is(err.Err, pgx.ErrNoRows):
-			meta := getErrMeta[util.ErrDatabaseMeta](err)
-			metaPanic(meta, err)
-			logging.LogError(err.Err, meta.File, meta.QueryDetails)
-			var body string
-			switch meta.RespondWithStatus {
-			case 400:
-				body = statusMessages.MalformedBody
-			case 401:
-				body = statusMessages.Unauthorized
-			case 500:
-				body = statusMessages.InternalServerError
-			default:
-				body = ""
-			}
-			params = &ResponseParams{meta.RespondWithStatus, body, ""}
-		case errors.As(err.Err, &pgErr):
-			meta := getErrMeta[util.ErrDatabaseMeta](err)
-			metaPanic(meta, err)
-			logging.LogError(err.Err, meta.File, meta.QueryDetails)
-			var body string
-			switch meta.RespondWithStatus {
-			case 500:
-				body = statusMessages.InternalServerError
-			default:
-				body = statusMessages.InternalServerError
-			}
-			params = &ResponseParams{500, body, ""}
 		// Catch all
 		case errors.Is(err, gterrors.ErrShouldNotHappen):
 			params = &ResponseParams{
@@ -202,14 +161,17 @@ func ErrorHandlerMiddleware() gin.HandlerFunc {
 			}
 		default:
 			detail := ""
+			errToShow := fmt.Errorf("unknown error: %w", err)
 			if isPublic {
-				detail = fmt.Sprintf("Unknown error: %v", err)
+				detail = errToShow.Error()
 			}
 			params = &ResponseParams{
 				Status: 500,
-				StatusMessage: statusMessages.InternalServerError,
+				StatusMessage: StatusMessageInternalServerError.String(),
 				Detail: detail,
 			}
+			_, file, line, _ := runtime.Caller(0)
+			logging.LogError(errToShow, fmt.Sprintf("%v: %d", file, line), "")
 		}
 		
 		body := gin.H{"status": params.StatusMessage}
