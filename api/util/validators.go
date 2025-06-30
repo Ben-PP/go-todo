@@ -6,7 +6,7 @@ import (
 )
 
 func ValidatePassword(password string) (bool, error) {
-	if length := len(password); length < 8 && length > 32 {
+	if length := len(password); length < 8 || length > 32 {
 		return false, nil
 	}
 	hasLetter, err := regexp.MatchString(`\p{L}`, password)
