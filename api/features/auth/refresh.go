@@ -119,7 +119,7 @@ func (ac *AuthController) Refresh(ctx *gin.Context) {
 		ctx.FullPath(),
 		user.Username,
 		logging.SessionEventTypeRefresh,
-		ctx.RemoteIP(),
+		ctx.ClientIP(),
 	)}
 	
 	refreshToken, refreshClaims, accessToken, accessClaims, err := generateTokens(

@@ -72,7 +72,7 @@ func ErrorHandlerMiddleware() gin.HandlerFunc {
 		// Malformed requests
 		case err.Type == gin.ErrorTypeBind:
 			params = &ResponseParams{400, StatusMessageMalformedBody.String(),	err.Error()}
-		case errors.Is(err, gterrors.ErrPasswordUnsatisfied):
+		case errors.Is(err, gterrors.ErrPasswordUnsatisfied) || errors.Is(err, gterrors.ErrPasswordSame):
 			params = &ResponseParams{400, StatusMessagePasswordUnsatisfied.String(), err.Error()}
 		case errors.Is(err, gterrors.ErrUsernameUnsatisfied):
 			params = &ResponseParams{400, StatusMessageUsernameUnsatisfied.String(), err.Error()}

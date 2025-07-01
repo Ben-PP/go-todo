@@ -16,12 +16,11 @@ import (
 
 func (ac *AuthController) Logout(ctx *gin.Context) {
 	// TODO Add access jwt to redis blacklist
-	// TODO Validate that access tokens user matches with the refresh tokens user
 	var payload *schemas.Refresh
 	if ok := mycontext.ShouldBindBodyWithJSON(&payload, ctx); !ok {
 		return
 	}
-
+	
 	refreshToken := payload.RefreshToken
 
 	claims, err := jwt.DecodeRefreshToken(refreshToken)
@@ -51,6 +50,23 @@ func (ac *AuthController) Logout(ctx *gin.Context) {
 		}
 		// Should never get to here
 		ctx.Error(gterrors.ErrShouldNotHappen)
+		return
+	}
+
+	userID, violatorName, _, err := mycontext.GetTokenVariables(ctx)
+	if err != nil {
+		_, file, line, _ := runtime.Caller(0)
+		mycontext.CtxAddGtInternalError("failed to get claims from jwt", file, line, err, ctx)
+		return
+	} else if userID != claims.Subject {
+		logging.LogSecurityEvent(
+			logging.SecurityScoreHigh,
+			logging.SecurityEventForbiddenAction,
+			ctx.FullPath(),
+			claims.Username,
+			violatorName,
+		)
+		ctx.Error(gterrors.ErrForbidden).SetType(gterrors.GetGinErrorType())
 		return
 	}
 
