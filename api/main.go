@@ -9,12 +9,12 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"go-todo/controllers"
 	db "go-todo/db/sqlc"
+	"go-todo/features/auth"
+	"go-todo/features/user"
 	"go-todo/logging"
 	"go-todo/middleware"
-	"go-todo/routes"
-	"go-todo/util"
+	"go-todo/util/config"
 
 	"github.com/jackc/pgx/v5"
 )
@@ -29,7 +29,7 @@ func main() {
     appLogger := logging.GetLogger()
     slog.SetDefault(appLogger)
 
-    config, err := util.GetConfig()
+    config, err := config.Get()
     if err != nil {
         _, file, line, _ := runtime.Caller(1)
         logging.LogError(err, fmt.Sprintf("%v: %d", file, line), "Failed to load config.")
@@ -49,12 +49,10 @@ func main() {
 
     mydb := db.New(conn)
 
-    authController := controllers.NewAuthController(mydb, ctx)
-    authRoutes := routes.NewRouteAuth(authController)
-    statusController := controllers.NewStatusController(mydb, ctx)
-    statusRoutes := routes.NewRouteStatus(statusController)
-    userController := controllers.NewUserController(mydb, ctx)
-    userRoutes := routes.NewRouteUser(userController)
+    authController := auth.NewController(mydb, ctx)
+    authRoutes := auth.NewRoutes(authController)
+    userController := user.NewController(mydb, ctx)
+    userRoutes := user.NewRoutes(userController)
 
     router := gin.Default()
 
@@ -75,9 +73,11 @@ func main() {
     
     {
         v1 := router.Group("/api/v1")
-        authRoutes.UserRoute(v1)
-        statusRoutes.StatusRoute(v1)
-        userRoutes.UserRoute(v1)    
+        v1.GET("/status", func(ctx *gin.Context) {
+            ctx.JSON(200, gin.H{"status": "ok"})
+        })
+        authRoutes.Register(v1)
+        userRoutes.Register(v1)    
     }
 
 

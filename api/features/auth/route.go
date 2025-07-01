@@ -1,21 +1,20 @@
-package routes
+package auth
 
 import (
-	"go-todo/controllers"
 	"go-todo/middleware"
 
 	"github.com/gin-gonic/gin"
 )
 
 type AuthRoutes struct {
-	authController * controllers.AuthController
+	authController *AuthController
 }
 
-func NewRouteAuth(authController *controllers.AuthController) *AuthRoutes {
+func NewRoutes(authController *AuthController) *AuthRoutes {
 	return &AuthRoutes{authController}
 }
 
-func (ar *AuthRoutes) UserRoute(rg *gin.RouterGroup) {
+func (ar *AuthRoutes) Register(rg *gin.RouterGroup) {
 	router := rg.Group("/auth")
 	router.POST("/login", ar.authController.Login)
 	router.POST("/logout", middleware.JwtAuthMiddleware(), ar.authController.Logout)

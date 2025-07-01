@@ -3,7 +3,7 @@ package middleware
 import (
 	"errors"
 	"fmt"
-	gterrors "go-todo/gt_errors"
+	"go-todo/gterrors"
 	"go-todo/logging"
 	"runtime"
 
