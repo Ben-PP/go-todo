@@ -1,3 +1,5 @@
+github.com/DeRuina/timberjack v1.3.0 h1:xgVKHXzek8MBd8XjSkNclR0fsFhvHcjnN6RC8U+xfqg=
+github.com/DeRuina/timberjack v1.3.0/go.mod h1:7GzI4TgL96tHcFlwWsf/jprQVlKf1/I+r/VMP6A+wbI=
 github.com/bytedance/sonic v1.11.6 h1:oUp34TzMlL+OY1OUWxHqsdkgC/Zfc85zGqw9siXjrc0=
 github.com/bytedance/sonic v1.11.6/go.mod h1:LysEHSvpvDySVdC2f87zGWf6CIKJcAvqab1ZaiQtds4=
 github.com/bytedance/sonic/loader v0.1.1 h1:c+e5Pt1k/cy5wMveRDyk2X4B9hF4g7an8N3zCYjJFNM=

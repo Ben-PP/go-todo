@@ -35,14 +35,17 @@ func (q *Queries) CreateJwtToken(ctx context.Context, arg CreateJwtTokenParams) 
 	return err
 }
 
-const deleteJwtTokenByFamily = `-- name: DeleteJwtTokenByFamily :exec
+const deleteJwtTokenByFamily = `-- name: DeleteJwtTokenByFamily :execrows
 DELETE FROM jwt_tokens
 WHERE family = $1
 `
 
-func (q *Queries) DeleteJwtTokenByFamily(ctx context.Context, family string) error {
-	_, err := q.db.Exec(ctx, deleteJwtTokenByFamily, family)
-	return err
+func (q *Queries) DeleteJwtTokenByFamily(ctx context.Context, family string) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteJwtTokenByFamily, family)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const deleteJwtTokenByUserIdExcludeFamily = `-- name: DeleteJwtTokenByUserIdExcludeFamily :exec
