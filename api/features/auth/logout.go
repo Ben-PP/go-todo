@@ -67,6 +67,7 @@ func (ac *AuthController) Logout(ctx *gin.Context) {
 			violatorName,
 		)
 		ctx.Error(gterrors.ErrForbidden).SetType(gterrors.GetGinErrorType())
+		return
 	}
 
 	if rows, err := ac.db.DeleteJwtTokenByFamily(ctx, claims.Family);
