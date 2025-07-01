@@ -27,7 +27,7 @@ func (ac *AuthController) UpdatePassword(ctx *gin.Context) {
 	if ok := mycontext.ShouldBindBodyWithJSON(&payload, ctx); !ok {
 		return
 	}
-	
+
 	isPasswdValid, err := validate.Password(payload.NewPassword)
 	if err != nil {
 		_, file, line, _ := runtime.Caller(0)
@@ -46,6 +46,7 @@ func (ac *AuthController) UpdatePassword(ctx *gin.Context) {
 		return
 	}
 
+
 	if !passwd.Compare(payload.OldPassword, user.PasswordHash) {
 		ctx.Error(
 			gterrors.NewGtAuthError(
@@ -54,9 +55,11 @@ func (ac *AuthController) UpdatePassword(ctx *gin.Context) {
 			),
 		).SetType(gin.ErrorTypePublic)
 		return
+	} else if passwd.Compare(payload.NewPassword, user.PasswordHash) {
+		ctx.Error(gterrors.ErrPasswordSame).SetType(gin.ErrorTypePublic)
+		return
 	}
 
-	// TODO Check that the new password is not the old password. Maybe a loop?
 	newPasswordHash, err := passwd.Hash(payload.NewPassword)
 	if err != nil {
 		_, file, line, _ := runtime.Caller(0)
