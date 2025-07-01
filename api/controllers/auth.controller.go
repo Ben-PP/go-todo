@@ -168,7 +168,7 @@ func (ac *AuthController) Refresh(ctx *gin.Context) {
 	
 	// This should always succeed if db works correctly as dbToken has to have
 	// userID. Errors are system failures.
-	user, err := ac.db.GetUserById(ctx, "testsss")//dbToken.UserID)
+	user, err := ac.db.GetUserById(ctx, dbToken.UserID)
 	if err != nil {
 		logTokenEventUse(false, decodedRefreshToken, ctx)
 		_, file, line, _ := runtime.Caller(0)
