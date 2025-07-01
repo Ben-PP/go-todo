@@ -17,7 +17,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
-func (uc *UserController) UpdateUser(ctx *gin.Context) {
+func (controller *UserController) UpdateUser(ctx *gin.Context) {
 	tokenUserId, _, _, err := mycontext.GetTokenVariables(ctx)
 	if err != nil {
 		_, file, line, _ := runtime.Caller(0)
@@ -25,7 +25,7 @@ func (uc *UserController) UpdateUser(ctx *gin.Context) {
 		return
 	}
 
-	reqUser, err := uc.db.GetUserById(ctx, tokenUserId)
+	reqUser, err := controller.db.GetUserById(ctx, tokenUserId)
 	if err != nil {
 		ctx.Error(
 			gterrors.NewGtAuthError(
@@ -77,7 +77,7 @@ func (uc *UserController) UpdateUser(ctx *gin.Context) {
 
 	var oldUser *db.User
 	if userIDToUpdate != reqUser.ID {
-		userFromDB, err := uc.db.GetUserById(ctx, userIDToUpdate)
+		userFromDB, err := controller.db.GetUserById(ctx, userIDToUpdate)
 		if err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
 				ctx.Error(gterrors.ErrNotFound).SetType(gin.ErrorTypePublic)
@@ -111,7 +111,7 @@ func (uc *UserController) UpdateUser(ctx *gin.Context) {
 		IsAdmin: *payload.IsAdmin,
 	}
 
-	updatedUser, err := uc.db.UpdateUser(ctx, *args)
+	updatedUser, err := controller.db.UpdateUser(ctx, *args)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		errMessage := "failed to update user"
@@ -132,7 +132,7 @@ func (uc *UserController) UpdateUser(ctx *gin.Context) {
 	}
 
 	if oldUser.IsAdmin != updatedUser.IsAdmin {
-		if err := uc.db.DeleteJwtTokensByUserId(ctx, updatedUser.ID); err != nil {
+		if err := controller.db.DeleteJwtTokensByUserId(ctx, updatedUser.ID); err != nil {
 			var pgErr *pgconn.PgError
 			errMessage := "failed to delete old jwts"
 			if errors.As(err, &pgErr) {

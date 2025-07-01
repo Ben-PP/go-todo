@@ -15,7 +15,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-func (ac *AuthController) UpdatePassword(ctx *gin.Context) {
+func (controller *AuthController) UpdatePassword(ctx *gin.Context) {
 	userID,_,_, err := mycontext.GetTokenVariables(ctx)
 	if err != nil {
 		_, file, line, _ := runtime.Caller(0)
@@ -39,7 +39,7 @@ func (ac *AuthController) UpdatePassword(ctx *gin.Context) {
 	}
 
 	// Should only fail if something is wrong in the server
-	user, err := ac.db.GetUserById(ctx, userID)
+	user, err := controller.db.GetUserById(ctx, userID)
 	if err != nil {
 		_, file, line, _ := runtime.Caller(0)
 		mycontext.CtxAddGtInternalError("failed to get user from db", file, line, err, ctx)
@@ -72,7 +72,7 @@ func (ac *AuthController) UpdatePassword(ctx *gin.Context) {
 		ID: user.ID,
 	}
 
-	if err := ac.db.UpdateUserPassword(ctx, *args); err != nil {
+	if err := controller.db.UpdateUserPassword(ctx, *args); err != nil {
 		_, file, line, _ := runtime.Caller(0)
 		mycontext.CtxAddGtInternalError("failed to update password to db", file, line, err, ctx)
 		return
@@ -96,7 +96,7 @@ func (ac *AuthController) UpdatePassword(ctx *gin.Context) {
 		ExpiresAt: pgtype.Timestamp{Time: refreshClaims.ExpiresAt.Time, Valid: true},
 	}
 	
-	if err := ac.db.CreateJwtToken(ctx, *refreshArgs); err != nil {
+	if err := controller.db.CreateJwtToken(ctx, *refreshArgs); err != nil {
 		_, file, line, _ := runtime.Caller(0)	
 		failedToSaveJwtToDbError(err, file, line, ctx)
 		return
@@ -107,7 +107,7 @@ func (ac *AuthController) UpdatePassword(ctx *gin.Context) {
 		Family: refreshClaims.Family,
 	}
 
-	if err := ac.db.DeleteJwtTokenByUserIdExcludeFamily(ctx, *deleteArgs); err != nil {
+	if err := controller.db.DeleteJwtTokenByUserIdExcludeFamily(ctx, *deleteArgs); err != nil {
 		_, file, line, _ := runtime.Caller(0)
 		mycontext.CtxAddGtInternalError("failed to remove old refresh jwts", file, line, err, ctx)
 	}

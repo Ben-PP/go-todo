@@ -17,7 +17,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-func (ac *AuthController) Refresh(ctx *gin.Context) {
+func (controller *AuthController) Refresh(ctx *gin.Context) {
 	var payload *schemas.Refresh
 	if ok := mycontext.ShouldBindBodyWithJSON(&payload, ctx); !ok {
 		return
@@ -50,7 +50,7 @@ func (ac *AuthController) Refresh(ctx *gin.Context) {
 		return
 	}
 
-	dbToken, err := ac.db.GetJwtTokenByJti(ctx, decodedRefreshToken.ID)
+	dbToken, err := controller.db.GetJwtTokenByJti(ctx, decodedRefreshToken.ID)
 	if err != nil {
 		logTokenEventUse(false, decodedRefreshToken, ctx)
 		logging.LogSecurityEvent(
@@ -85,7 +85,7 @@ func (ac *AuthController) Refresh(ctx *gin.Context) {
 			ctx.ClientIP(),
 		)
 		ginType := gterrors.GetGinErrorType()
-		if rows, err := ac.db.DeleteJwtTokenByFamily(ctx, dbToken.Family);
+		if rows, err := controller.db.DeleteJwtTokenByFamily(ctx, dbToken.Family);
 		err != nil || rows == 0 {
 			_, file, line, _ := runtime.Caller(0)
 			errIfNil := fmt.Errorf("failed to delete jwt family: %w", err)
@@ -106,7 +106,7 @@ func (ac *AuthController) Refresh(ctx *gin.Context) {
 	
 	// This should always succeed if db works correctly as dbToken has to have
 	// userID. Errors are system failures.
-	user, err := ac.db.GetUserById(ctx, dbToken.UserID)
+	user, err := controller.db.GetUserById(ctx, dbToken.UserID)
 	if err != nil {
 		logTokenEventUse(false, decodedRefreshToken, ctx)
 		_, file, line, _ := runtime.Caller(0)
@@ -135,7 +135,7 @@ func (ac *AuthController) Refresh(ctx *gin.Context) {
 	}
 
 	// Mark the token as used.
-	if err := ac.db.UseJwtToken(ctx, dbToken.Jti); err != nil {
+	if err := controller.db.UseJwtToken(ctx, dbToken.Jti); err != nil {
 		logTokenEventUse(false, decodedRefreshToken, ctx)
 		logSessionRefresh(false)
 		_, file, line, _ := runtime.Caller(0)
@@ -151,7 +151,7 @@ func (ac *AuthController) Refresh(ctx *gin.Context) {
 		ExpiresAt: pgtype.Timestamp{Time: refreshClaims.ExpiresAt.Time, Valid: true},
 	}
 	
-	if err := ac.db.CreateJwtToken(ctx, *args); err != nil {
+	if err := controller.db.CreateJwtToken(ctx, *args); err != nil {
 		logTokenEventUse(false, decodedRefreshToken, ctx)
 		logSessionRefresh(false)
 		_, file, line, _ := runtime.Caller(0)

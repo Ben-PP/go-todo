@@ -12,7 +12,7 @@ import (
 )
 
 // Controller for deleting users
-func (uc *UserController) DeleteUser(ctx *gin.Context) {
+func (controller *UserController) DeleteUser(ctx *gin.Context) {
 	tokenUserId, tokenUserName, _, err := mycontext.GetTokenVariables(ctx)
 	if err != nil {
 		_, file, line, _ := runtime.Caller(0)
@@ -20,7 +20,7 @@ func (uc *UserController) DeleteUser(ctx *gin.Context) {
 		return
 	}
 
-	reqUser, err := uc.db.GetUserById(ctx, tokenUserId)
+	reqUser, err := controller.db.GetUserById(ctx, tokenUserId)
 	if err != nil {
 		logging.LogSecurityEvent(
 			logging.SecurityScoreLow,
@@ -51,7 +51,7 @@ func (uc *UserController) DeleteUser(ctx *gin.Context) {
 		return
 	}
 
-	rows, err := uc.db.DeleteUser(ctx, userIDToDelete)
+	rows, err := controller.db.DeleteUser(ctx, userIDToDelete)
 	if err != nil {
 		_, file, line, _ := runtime.Caller(0)
 		mycontext.CtxAddGtInternalError("could not delete user", file, line, err, ctx)

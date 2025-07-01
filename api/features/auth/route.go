@@ -14,10 +14,10 @@ func NewRoutes(authController *AuthController) *AuthRoutes {
 	return &AuthRoutes{authController}
 }
 
-func (ar *AuthRoutes) Register(rg *gin.RouterGroup) {
+func (routes *AuthRoutes) Register(rg *gin.RouterGroup) {
 	router := rg.Group("/auth")
-	router.POST("/login", ar.authController.Login)
-	router.POST("/logout", middleware.JwtAuthMiddleware(), ar.authController.Logout)
-	router.POST("/refresh", ar.authController.Refresh)
-	router.POST("/update-password",middleware.JwtAuthMiddleware(), ar.authController.UpdatePassword)
+	router.POST("/login", routes.authController.Login)
+	router.POST("/logout", middleware.JwtAuthMiddleware(), routes.authController.Logout)
+	router.POST("/refresh", routes.authController.Refresh)
+	router.POST("/update-password",middleware.JwtAuthMiddleware(), routes.authController.UpdatePassword)
 }

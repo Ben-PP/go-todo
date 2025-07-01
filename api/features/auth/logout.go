@@ -14,7 +14,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func (ac *AuthController) Logout(ctx *gin.Context) {
+func (controller *AuthController) Logout(ctx *gin.Context) {
 	// TODO Add access jwt to redis blacklist
 	var payload *schemas.Refresh
 	if ok := mycontext.ShouldBindBodyWithJSON(&payload, ctx); !ok {
@@ -70,7 +70,7 @@ func (ac *AuthController) Logout(ctx *gin.Context) {
 		return
 	}
 
-	if rows, err := ac.db.DeleteJwtTokenByFamily(ctx, claims.Family);
+	if rows, err := controller.db.DeleteJwtTokenByFamily(ctx, claims.Family);
 	err != nil || rows == 0 {
 		_, file, line, _ := runtime.Caller(0)
 		errIfNil := fmt.Errorf("failed to delete jwt family: %w", err)

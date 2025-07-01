@@ -14,9 +14,9 @@ func NewRoutes(userController *UserController) *UserRoutes {
 	return &UserRoutes{userController}
 }
 
-func (ur *UserRoutes) Register(rg *gin.RouterGroup) {
+func (routes *UserRoutes) Register(rg *gin.RouterGroup) {
 	router := rg.Group("/user")
-	router.POST("/", ur.userController.CreateUser)
-	router.PATCH("/:id", middleware.JwtAuthMiddleware(), ur.userController.UpdateUser)
-	router.DELETE("/:id", middleware.JwtAuthMiddleware(), ur.userController.DeleteUser)
+	router.POST("/", routes.userController.CreateUser)
+	router.PATCH("/:id", middleware.JwtAuthMiddleware(), routes.userController.UpdateUser)
+	router.DELETE("/:id", middleware.JwtAuthMiddleware(), routes.userController.DeleteUser)
 }

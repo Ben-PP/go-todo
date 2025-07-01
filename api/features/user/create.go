@@ -17,14 +17,14 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
-func (uc *UserController) CreateUser(ctx *gin.Context) {
+func (controller *UserController) CreateUser(ctx *gin.Context) {
 	var payload *schemas.CreateUser
 	if ok := mycontext.ShouldBindBodyWithJSON(&payload, ctx); !ok {
 		return
 	}
 
 	makeAdmin := false
-	users, err := uc.db.GetAllUsers(ctx)
+	users, err := controller.db.GetAllUsers(ctx)
 	if err != nil {
 		_, file, line, _ := runtime.Caller(0)
 		mycontext.CtxAddGtInternalError("failed to get users from db", file, line, err, ctx)
@@ -70,7 +70,7 @@ func (uc *UserController) CreateUser(ctx *gin.Context) {
 		IsAdmin: makeAdmin,
 	}
 
-	user, err := uc.db.CreateUser(ctx, *args)
+	user, err := controller.db.CreateUser(ctx, *args)
 	if err != nil {
 		var pgErr *pgconn.PgError
 		errMessage := "failed to create user"

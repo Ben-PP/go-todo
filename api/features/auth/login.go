@@ -18,7 +18,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-func (ac *AuthController) Login(ctx *gin.Context) {
+func (controller *AuthController) Login(ctx *gin.Context) {
 	var payload *schemas.Login
 	if ok := mycontext.ShouldBindBodyWithJSON(&payload, ctx); !ok {
 		return
@@ -41,7 +41,7 @@ func (ac *AuthController) Login(ctx *gin.Context) {
 		return
 	}
 
-	user, err := ac.db.GetUserByUsername(ctx, username)
+	user, err := controller.db.GetUserByUsername(ctx, username)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			logging.LogSecurityEvent(
@@ -109,7 +109,7 @@ func (ac *AuthController) Login(ctx *gin.Context) {
 		ExpiresAt: pgtype.Timestamp{Time: refreshClaims.ExpiresAt.Time, Valid: true},
 	}
 	
-	if err := ac.db.CreateJwtToken(ctx, *args); err != nil {
+	if err := controller.db.CreateJwtToken(ctx, *args); err != nil {
 		_, file, line, _ := runtime.Caller(0)	
 		failedToSaveJwtToDbError(err, file, line, ctx)
 		return
