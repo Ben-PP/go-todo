@@ -3,9 +3,8 @@ package middleware
 import (
 	"errors"
 	"fmt"
-	gterrors "go-todo/gt_errors"
+	"go-todo/gterrors"
 	"go-todo/logging"
-	"go-todo/util"
 	jwtUtil "go-todo/util/jwt"
 	"runtime"
 
@@ -18,7 +17,7 @@ func JwtAuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		token, err := jwtUtil.DecodeTokenFromHeader(c)
 		if err != nil {
-			ginType := util.GetGinErrorType()
+			ginType := gterrors.GetGinErrorType()
 			var jwtErr *jwtUtil.JwtDecodeError
 			if errors.As(err, &jwtErr) {
 				if jwtErr.Claims != nil {

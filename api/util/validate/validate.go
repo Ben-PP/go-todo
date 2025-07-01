@@ -1,11 +1,11 @@
-package util
+package validate
 
 import (
 	"fmt"
 	"regexp"
 )
 
-func ValidatePassword(password string) (bool, error) {
+func Password(password string) (bool, error) {
 	if length := len(password); length < 8 || length > 32 {
 		return false, nil
 	}
@@ -25,7 +25,7 @@ func ValidatePassword(password string) (bool, error) {
 	return hasLetter && hasNumber && hasSpecialChar, nil
 }
 
-func ValidateUsername(username string) (bool, error) {
+func Username(username string) (bool, error) {
 	if length := len(username); length < 3 || length > 20 {
 		return false, nil
 	}

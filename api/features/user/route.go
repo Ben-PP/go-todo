@@ -1,21 +1,20 @@
-package routes
+package user
 
 import (
-	"go-todo/controllers"
 	"go-todo/middleware"
 
 	"github.com/gin-gonic/gin"
 )
 
 type UserRoutes struct {
-	userController *controllers.UserController
+	userController *UserController
 }
 
-func NewRouteUser(userController *controllers.UserController) *UserRoutes {
+func NewRoutes(userController *UserController) *UserRoutes {
 	return &UserRoutes{userController}
 }
 
-func (ur *UserRoutes) UserRoute(rg *gin.RouterGroup) {
+func (ur *UserRoutes) Register(rg *gin.RouterGroup) {
 	router := rg.Group("/user")
 	router.POST("/", ur.userController.CreateUser)
 	router.PATCH("/:id", middleware.JwtAuthMiddleware(), ur.userController.UpdateUser)

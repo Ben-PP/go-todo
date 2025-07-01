@@ -3,7 +3,7 @@ package jwt
 import (
 	"errors"
 	"fmt"
-	"go-todo/util"
+	"go-todo/util/config"
 	"strings"
 	"time"
 
@@ -65,7 +65,7 @@ func generateJwt(username string, userID string, isAdmin bool, isRefreshToken bo
 		return fmt.Errorf("GenerateJwtError: %w", err)
 	}
 
-	config, err := util.GetConfig()
+	config, err := config.Get()
 	if err != nil {
 		return "", nil, generateError(err)
 	}
@@ -120,7 +120,7 @@ func GenerateRefreshJwt(username string, userID string, isAdmin bool, tokenFamil
 // decoded with refresh secret. If all goes well, returns claims and if not,
 // returns JwtValidationError or normal error.
 func decodeJwt(tokenString string, isRefreshToken bool) (*GtClaims, error) {
-	config, err := util.GetConfig()
+	config, err := config.Get()
 	if err != nil {
 		return nil, err
 	}

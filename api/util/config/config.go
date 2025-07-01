@@ -1,12 +1,13 @@
-package util
+package config
 
 import (
 	"errors"
-	gterrors "go-todo/gt_errors"
 	"os"
 
 	"github.com/spf13/viper"
 )
+
+var ErrConfigLoadFailed = errors.New("failed to load config")
 
 type Config struct {
     DbUrl                   string  `mapstructure:"DB_URL"`
@@ -41,14 +42,19 @@ func loadConfig(path string) (config *Config, err error) {
     return
 }
 
-func GetConfig() (config *Config, err error) {
+func Get() (config *Config, err error) {
     if globalConfig == nil {
         globalConfig, err = loadConfig(".")
         if err != nil {
-            err = errors.Join(gterrors.ErrConfigLoadFailed, err)
+            err = errors.Join(ErrConfigLoadFailed, err)
             return
         }
     }
     config = globalConfig
     return
+}
+
+// Returns the value of GO_ENV environment variable.
+func GetGoEnv() string {
+	return os.Getenv("GO_ENV")
 }
