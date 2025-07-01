@@ -51,7 +51,7 @@ func CtxAddGtInternalError(message, file string, line int, err error, c *gin.Con
 // Check the body format against the schema. 'payload' should be like
 // &schemas.<MyBodySchema>
 func ShouldBindBodyWithJSON(payload any, c *gin.Context) bool {
-	if err := c.ShouldBindBodyWithJSON(&payload); err != nil {
+	if err := c.ShouldBindBodyWithJSON(payload); err != nil {
 		c.Error(err).SetType(gin.ErrorTypeBind)
 		return false
 	}
