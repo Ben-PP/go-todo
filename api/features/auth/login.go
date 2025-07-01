@@ -79,7 +79,7 @@ func (ac *AuthController) Login(ctx *gin.Context) {
 			ctx.FullPath(),
 			user.Username,
 			logging.SessionEventTypeLogin,
-			ctx.RemoteIP(),
+			ctx.ClientIP(),
 		)
 
 		ctx.Error(
