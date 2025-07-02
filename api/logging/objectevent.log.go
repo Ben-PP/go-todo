@@ -7,11 +7,14 @@ import (
 
 type ObjectEventSub int
 const (
-	ObjectEventSubUser	ObjectEventSub = iota
+	ObjectEventSubList	ObjectEventSub = iota
+	ObjectEventSubUser
 )
 
 func (e ObjectEventSub) String() string {
 	switch e {
+	case ObjectEventSubList:
+		return "list"
 	case ObjectEventSubUser:
 		return "user"
 	}
@@ -65,6 +68,7 @@ func LogObjectEvent(
 
 		curKey := "current"
 		oldKey := "old"
+		// Add new case for new subject types
 		switch sc := subCur.(type) {
 		case string:
 			if eventType == ObjectEventDelete {
@@ -74,6 +78,24 @@ func LogObjectEvent(
 					gOld := slog.String("id", so)
 					groupOld = &gOld
 				}
+			}
+		case *db.List:
+			gCur :=slog.Group(
+				curKey,
+				slog.String("id", sc.ID),
+				slog.String("title", sc.Title),
+				slog.String("description", sc.Description),
+			)
+			groupCurrent = &gCur
+			if subOld != nil {
+				so := subOld.(*db.List)
+				gOld := slog.Group(
+					oldKey,
+					slog.String("id", so.ID),
+					slog.String("title", so.Title),
+					slog.String("description", so.Description),
+				)
+				groupOld = &gOld
 			}
 		case *db.CreateUserRow:
 			gCur :=slog.Group(

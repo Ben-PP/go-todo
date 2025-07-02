@@ -11,6 +11,7 @@ import (
 
 	db "go-todo/db/sqlc"
 	"go-todo/features/auth"
+	"go-todo/features/list"
 	"go-todo/features/user"
 	"go-todo/logging"
 	"go-todo/middleware"
@@ -51,6 +52,8 @@ func main() {
     authRoutes := auth.NewRoutes(authController)
     userController := user.NewController(mydb, ctx)
     userRoutes := user.NewRoutes(userController)
+    listController := list.NewController(mydb, ctx)
+    listRoutes := list.NewRoutes(listController)
 
     router := gin.Default()
 
@@ -75,7 +78,8 @@ func main() {
             ctx.JSON(200, gin.H{"status": "ok"})
         })
         authRoutes.Register(v1)
-        userRoutes.Register(v1)    
+        userRoutes.Register(v1)
+        listRoutes.Register(v1)
     }
 
 
