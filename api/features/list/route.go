@@ -20,4 +20,5 @@ func (routes *ListRoutes) Register(rg *gin.RouterGroup) {
 	router.Use(middleware.JwtAuthMiddleware())
 
 	router.POST("/", routes.listController.CreateList)
+	router.PATCH("/:id", routes.listController.UpdateList)
 }

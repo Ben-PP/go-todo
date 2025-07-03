@@ -68,6 +68,7 @@ func ErrorHandlerMiddleware() gin.HandlerFunc {
 		var params *ResponseParams
 		var authError *gterrors.GtAuthError
 		var internalError *gterrors.GtInternalError
+		var validationError *gterrors.GtValidationError
 		switch {
 		// Malformed requests
 		case err.Type == gin.ErrorTypeBind:
@@ -82,6 +83,12 @@ func ErrorHandlerMiddleware() gin.HandlerFunc {
 			params = &ResponseParams{409, StatusMessageUniqueViolation.String(), err.Error()}
 		case errors.Is(err, gterrors.ErrNotFound):
 			params = &ResponseParams{404, StatusMessageNotFound.String(), err.Error()}
+		case errors.As(err, &validationError):
+			params = &ResponseParams{
+				400,
+				"invalid-value",
+				validationError.Error(),
+			}
 		// GtAuthError
 		case errors.As(err.Err, &authError):
 			detail := ""

@@ -40,3 +40,49 @@ func (q *Queries) CreateList(ctx context.Context, arg CreateListParams) (List, e
 	)
 	return i, err
 }
+
+const getList = `-- name: GetList :one
+SELECT id, user_id, title, description, created_at, updated_at FROM lists
+WHERE id = $1
+`
+
+func (q *Queries) GetList(ctx context.Context, id string) (List, error) {
+	row := q.db.QueryRow(ctx, getList, id)
+	var i List
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Title,
+		&i.Description,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const updateList = `-- name: UpdateList :one
+UPDATE lists
+SET title = $1, description = $2, updated_at = CURRENT_TIMESTAMP
+WHERE id = $3
+RETURNING id, user_id, title, description, created_at, updated_at
+`
+
+type UpdateListParams struct {
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	ID          string `json:"id"`
+}
+
+func (q *Queries) UpdateList(ctx context.Context, arg UpdateListParams) (List, error) {
+	row := q.db.QueryRow(ctx, updateList, arg.Title, arg.Description, arg.ID)
+	var i List
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Title,
+		&i.Description,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}

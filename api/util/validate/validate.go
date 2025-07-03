@@ -5,6 +5,19 @@ import (
 	"regexp"
 )
 
+// Returns true if the str has lower or equal number of chars than length.
+func stringLength(str string, length int) bool {
+	return len(str) <= length
+}
+
+func LengthListDescription(txt string) bool {
+	return stringLength(txt, 100)
+}
+
+func LengthListTitle(txt string) bool {
+	return stringLength(txt, 50)
+}
+
 func Password(password string) (bool, error) {
 	if length := len(password); length < 8 || length > 32 {
 		return false, nil
