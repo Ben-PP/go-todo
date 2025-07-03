@@ -28,9 +28,27 @@ func (controller *ListController) CreateList(ctx *gin.Context) {
 		return
 	}
 
+	reqUser, err := controller.db.GetUserById(ctx, tokenUserId)
+	if err != nil {
+		logging.LogSecurityEvent(
+			logging.SecurityScoreLow,
+			logging.SecurityEventJwtUserUnknown,
+			ctx.FullPath(),
+			tokenUserName,
+			ctx.ClientIP(),
+		)
+		ctx.Error(
+			gterrors.NewGtAuthError(
+				gterrors.GtAuthErrorReasonJwtUserNotFound,
+				fmt.Errorf("could not get user from db: %w", err),
+			),
+		).SetType(gterrors.GetGinErrorType())
+		return
+	}
+
 	args := &db.CreateListParams{
 		ID: uuid.New().String(),
-		UserID: tokenUserId,
+		UserID: reqUser.ID,
 		Title: payload.Title,
 		Description: payload.Description,
 	}
@@ -58,24 +76,6 @@ func (controller *ListController) CreateList(ctx *gin.Context) {
 		}
 		_, file, line, _ := runtime.Caller(0)
 		mycontext.CtxAddGtInternalError(errMessage, file, line, err, ctx)
-		return
-	}
-
-	reqUser, err := controller.db.GetUserById(ctx, tokenUserId)
-	if err != nil {
-		logging.LogSecurityEvent(
-			logging.SecurityScoreLow,
-			logging.SecurityEventJwtUserUnknown,
-			ctx.FullPath(),
-			tokenUserName,
-			ctx.ClientIP(),
-		)
-		ctx.Error(
-			gterrors.NewGtAuthError(
-				gterrors.GtAuthErrorReasonJwtUserNotFound,
-				fmt.Errorf("could not get user from db: %w", err),
-			),
-		).SetType(gterrors.GetGinErrorType())
 		return
 	}
 
