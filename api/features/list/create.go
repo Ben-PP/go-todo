@@ -88,5 +88,5 @@ func (controller *ListController) CreateList(ctx *gin.Context) {
 		nil,
 		logging.ObjectEventSubList,
 	)
-	ctx.JSON(200, gin.H{"status": "created", "list": list})
+	ctx.JSON(201, gin.H{"status": "created", "list": list})
 }
