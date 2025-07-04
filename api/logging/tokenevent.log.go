@@ -6,12 +6,14 @@ import (
 )
 
 type TokenEventType int
+
 const (
-	TokenEventTypeAccess	TokenEventType = iota
+	TokenEventTypeAccess TokenEventType = iota
 	TokenEventTypeUse
 	TokenEventtypeCreate
 )
-func (t TokenEventType)String() string {
+
+func (t TokenEventType) String() string {
 	switch t {
 	case TokenEventTypeAccess:
 		return "token:access"
@@ -29,30 +31,30 @@ func LogTokenEvent(
 	eventType TokenEventType,
 	srcIp string,
 	token *jwt.GtClaims,
-	) {
-		if token != nil {
-			LogAuditEvent(
-				success,
-				targetPath,
-				srcIp,
-				eventType.String(),
-				slog.Group(
-					"token",
-					slog.String("sub", token.Subject),
-					slog.Bool("is_admin", token.IsAdmin),
-					slog.String("jti", token.ID),
-					slog.String("issuer", token.Issuer),
-					slog.String("issued_at", token.IssuedAt.String()),
-					slog.String("family", token.Family),
-					slog.String("expires_at", token.ExpiresAt.String()),
-				),
-			)
-		} else {
-			LogAuditEvent(
-				success,
-				targetPath,
-				srcIp,
-				eventType.String(),
-			)
-		}
+) {
+	if token != nil {
+		LogAuditEvent(
+			success,
+			targetPath,
+			srcIp,
+			eventType.String(),
+			slog.Group(
+				"token",
+				slog.String("sub", token.Subject),
+				slog.Bool("is_admin", token.IsAdmin),
+				slog.String("jti", token.ID),
+				slog.String("issuer", token.Issuer),
+				slog.String("issued_at", token.IssuedAt.String()),
+				slog.String("family", token.Family),
+				slog.String("expires_at", token.ExpiresAt.String()),
+			),
+		)
+	} else {
+		LogAuditEvent(
+			success,
+			targetPath,
+			srcIp,
+			eventType.String(),
+		)
+	}
 }

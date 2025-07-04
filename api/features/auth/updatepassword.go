@@ -16,7 +16,7 @@ import (
 )
 
 func (controller *AuthController) UpdatePassword(ctx *gin.Context) {
-	userID,_,_, err := mycontext.GetTokenVariables(ctx)
+	userID, _, _, err := mycontext.GetTokenVariables(ctx)
 	if err != nil {
 		_, file, line, _ := runtime.Caller(0)
 		mycontext.CtxAddGtInternalError("failed to get claims from jwt", file, line, err, ctx)
@@ -46,7 +46,6 @@ func (controller *AuthController) UpdatePassword(ctx *gin.Context) {
 		return
 	}
 
-
 	if !passwd.Compare(payload.OldPassword, user.PasswordHash) {
 		ctx.Error(
 			gterrors.NewGtAuthError(
@@ -69,7 +68,7 @@ func (controller *AuthController) UpdatePassword(ctx *gin.Context) {
 
 	args := &db.UpdateUserPasswordParams{
 		PasswordHash: newPasswordHash,
-		ID: user.ID,
+		ID:           user.ID,
 	}
 
 	if err := controller.db.UpdateUserPassword(ctx, *args); err != nil {
@@ -89,15 +88,15 @@ func (controller *AuthController) UpdatePassword(ctx *gin.Context) {
 	}
 
 	refreshArgs := &db.CreateJwtTokenParams{
-		Jti: refreshClaims.ID,
-		UserID: refreshClaims.Subject,
-		Family: refreshClaims.Family,
-		CreatedAt: pgtype.Timestamp{Time: refreshClaims.IssuedAt.Time,Valid: true},
+		Jti:       refreshClaims.ID,
+		UserID:    refreshClaims.Subject,
+		Family:    refreshClaims.Family,
+		CreatedAt: pgtype.Timestamp{Time: refreshClaims.IssuedAt.Time, Valid: true},
 		ExpiresAt: pgtype.Timestamp{Time: refreshClaims.ExpiresAt.Time, Valid: true},
 	}
-	
+
 	if err := controller.db.CreateJwtToken(ctx, *refreshArgs); err != nil {
-		_, file, line, _ := runtime.Caller(0)	
+		_, file, line, _ := runtime.Caller(0)
 		failedToSaveJwtToDbError(err, file, line, ctx)
 		return
 	}
@@ -113,8 +112,8 @@ func (controller *AuthController) UpdatePassword(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, gin.H{
-		"status": "ok",
-		"access_token": accessToken,
+		"status":        "ok",
+		"access_token":  accessToken,
 		"refresh_token": refreshToken,
 	})
 }

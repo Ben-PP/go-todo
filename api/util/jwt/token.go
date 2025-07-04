@@ -13,15 +13,16 @@ import (
 )
 
 type GtClaims struct {
-	IsAdmin bool `json:"is_admin"`
+	IsAdmin  bool   `json:"is_admin"`
 	Username string `json:"username"`
-	Family string `json:"family"`
+	Family   string `json:"family"`
 	jwt.RegisteredClaims
 }
 
 type JwtErrorReason int
+
 const (
-	JwtErrorReasonExpired	JwtErrorReason = iota
+	JwtErrorReasonExpired JwtErrorReason = iota
 	JwtErrorReasonInvalidSignature
 	JwtErrorReasonTokenMalformed
 	JwtErrorReasonUnhandled
@@ -41,10 +42,10 @@ func (t JwtErrorReason) String() string {
 	return "unknown"
 }
 
-type JwtDecodeError struct  {
+type JwtDecodeError struct {
 	Claims *GtClaims
 	Reason JwtErrorReason
-	Err error
+	Err    error
 }
 
 func (e *JwtDecodeError) Error() string {
@@ -56,7 +57,7 @@ func NewJwtDecodeError(claims *GtClaims, reason JwtErrorReason, err error) *JwtD
 	return &JwtDecodeError{
 		Claims: claims,
 		Reason: reason,
-		Err: wrappedErr,
+		Err:    wrappedErr,
 	}
 }
 
@@ -69,14 +70,14 @@ func generateJwt(username string, userID string, isAdmin bool, isRefreshToken bo
 	if err != nil {
 		return "", nil, generateError(err)
 	}
-	
+
 	authLifeSpan := config.AccessTokenLifeSpan
 	if isRefreshToken {
 		authLifeSpan = config.RefreshTokenLifeSpan
 	}
 	lifeSpanDuration := time.Minute * time.Duration(authLifeSpan)
 	timeNow := time.Now().UTC()
-	expiry := jwt.NewNumericDate(timeNow.Add(lifeSpanDuration))	
+	expiry := jwt.NewNumericDate(timeNow.Add(lifeSpanDuration))
 	if family == "" && isRefreshToken {
 		family = uuid.New().String()
 	} else if !isRefreshToken {
@@ -87,12 +88,11 @@ func generateJwt(username string, userID string, isAdmin bool, isRefreshToken bo
 		username,
 		family,
 		jwt.RegisteredClaims{
-			ID: uuid.New().String(),
-			Subject: userID,
+			ID:        uuid.New().String(),
+			Subject:   userID,
 			ExpiresAt: expiry,
-			Issuer: "GO-TODO",
-			IssuedAt: jwt.NewNumericDate(timeNow),
-
+			Issuer:    "GO-TODO",
+			IssuedAt:  jwt.NewNumericDate(timeNow),
 		},
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS512, claims)
@@ -129,7 +129,7 @@ func decodeJwt(tokenString string, isRefreshToken bool) (*GtClaims, error) {
 	if isRefreshToken {
 		secret = config.JwtRefreshSecret
 	}
-	decodedToken, err := jwt.ParseWithClaims(tokenString, &GtClaims{}, func(token *jwt.Token)(any, error){
+	decodedToken, err := jwt.ParseWithClaims(tokenString, &GtClaims{}, func(token *jwt.Token) (any, error) {
 		return []byte(secret), nil
 	})
 	if err != nil {

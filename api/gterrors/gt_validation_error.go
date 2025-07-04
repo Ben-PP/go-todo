@@ -3,7 +3,7 @@ package gterrors
 import "fmt"
 
 type GtValidationError struct {
-	Value string
+	Value  string
 	Detail string
 }
 
@@ -13,7 +13,7 @@ func (e *GtValidationError) Error() string {
 
 func NewGtValueError(value, detail string) *GtValidationError {
 	return &GtValidationError{
-		Value: value,
+		Value:  value,
 		Detail: detail,
 	}
 }

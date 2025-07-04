@@ -12,14 +12,15 @@ import (
 )
 
 type ResponseParams struct {
-	Status int
+	Status        int
 	StatusMessage string
-	Detail string
+	Detail        string
 }
 
 type StatusMessage int
+
 const (
-	StatusMessageForbidden			StatusMessage = iota
+	StatusMessageForbidden StatusMessage = iota
 	StatusMessageInternalServerError
 	StatusMessageInvalidCredentials
 	StatusMessageMalformedBody
@@ -32,24 +33,24 @@ const (
 
 func (t StatusMessage) String() string {
 	switch t {
-		case StatusMessageForbidden:
-			return "forbidden"
-		case StatusMessageInternalServerError:
-			return "internal-server-error"
-		case StatusMessageInvalidCredentials:
-			return "invalid-credentials"
-		case StatusMessageMalformedBody:
-			return "malformed-body"
-		case StatusMessageNotFound:
-			return "not-found"
-		case StatusMessagePasswordUnsatisfied:
-			return "password-unsatisfied"
-		case StatusMessageUnauthorized:
-			return "unauthorized"
-		case StatusMessageUniqueViolation:
-			return "unique-violation"
-		case StatusMessageUsernameUnsatisfied:
-			return "username-unsatisfied"
+	case StatusMessageForbidden:
+		return "forbidden"
+	case StatusMessageInternalServerError:
+		return "internal-server-error"
+	case StatusMessageInvalidCredentials:
+		return "invalid-credentials"
+	case StatusMessageMalformedBody:
+		return "malformed-body"
+	case StatusMessageNotFound:
+		return "not-found"
+	case StatusMessagePasswordUnsatisfied:
+		return "password-unsatisfied"
+	case StatusMessageUnauthorized:
+		return "unauthorized"
+	case StatusMessageUniqueViolation:
+		return "unique-violation"
+	case StatusMessageUsernameUnsatisfied:
+		return "username-unsatisfied"
 	}
 	return "unknown-status-message"
 }
@@ -72,7 +73,7 @@ func ErrorHandlerMiddleware() gin.HandlerFunc {
 		switch {
 		// Malformed requests
 		case err.Type == gin.ErrorTypeBind:
-			params = &ResponseParams{400, StatusMessageMalformedBody.String(),	err.Error()}
+			params = &ResponseParams{400, StatusMessageMalformedBody.String(), err.Error()}
 		case errors.Is(err, gterrors.ErrPasswordUnsatisfied) || errors.Is(err, gterrors.ErrPasswordSame):
 			params = &ResponseParams{400, StatusMessagePasswordUnsatisfied.String(), err.Error()}
 		case errors.Is(err, gterrors.ErrUsernameUnsatisfied):
@@ -97,7 +98,7 @@ func ErrorHandlerMiddleware() gin.HandlerFunc {
 			if isPublic {
 				detail = authError.Reason.String()
 			}
-			
+
 			switch authError.Reason {
 			case gterrors.GtAuthErrorReasonExpired:
 				statusMessage = StatusMessageUnauthorized.String()
@@ -118,7 +119,7 @@ func ErrorHandlerMiddleware() gin.HandlerFunc {
 				if isPublic {
 					detail = authError.Err.Error()
 				}
-				logging.LogError(authError.Err, "unknown", authError.Error())	
+				logging.LogError(authError.Err, "unknown", authError.Error())
 			default:
 				statusMessage = StatusMessageInternalServerError.String()
 				status = 500
@@ -136,9 +137,9 @@ func ErrorHandlerMiddleware() gin.HandlerFunc {
 			}
 
 			params = &ResponseParams{
-				Status: status,
+				Status:        status,
 				StatusMessage: statusMessage,
-				Detail: detail,
+				Detail:        detail,
 			}
 		// GtInternalError
 		case errors.As(err, &internalError):
@@ -155,16 +156,16 @@ func ErrorHandlerMiddleware() gin.HandlerFunc {
 				statusMessage = StatusMessageInternalServerError.String()
 			}
 			params = &ResponseParams{
-				Status: internalError.ResponseStatus,
+				Status:        internalError.ResponseStatus,
 				StatusMessage: statusMessage,
-				Detail: detail,
+				Detail:        detail,
 			}
 		// Catch all
 		case errors.Is(err, gterrors.ErrShouldNotHappen):
 			params = &ResponseParams{
-				Status: 500,
+				Status:        500,
 				StatusMessage: "should-never-happen",
-				Detail: "Congratulations! You have caused an error that should not be possible to happen :D",
+				Detail:        "Congratulations! You have caused an error that should not be possible to happen :D",
 			}
 		default:
 			detail := ""
@@ -173,14 +174,14 @@ func ErrorHandlerMiddleware() gin.HandlerFunc {
 				detail = errToShow.Error()
 			}
 			params = &ResponseParams{
-				Status: 500,
+				Status:        500,
 				StatusMessage: StatusMessageInternalServerError.String(),
-				Detail: detail,
+				Detail:        detail,
 			}
 			_, file, line, _ := runtime.Caller(0)
 			logging.LogError(errToShow, fmt.Sprintf("%v: %d", file, line), "")
 		}
-		
+
 		body := gin.H{"status": params.StatusMessage}
 		if params.Detail != "" {
 			body = gin.H{

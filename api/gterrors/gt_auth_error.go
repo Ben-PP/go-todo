@@ -8,8 +8,9 @@ import (
 var ErrGtLogoutFailure = errors.New("failed to logout")
 
 type GtAuthErrorReason int
+
 const (
-	GtAuthErrorReasonExpired	GtAuthErrorReason = iota
+	GtAuthErrorReasonExpired GtAuthErrorReason = iota
 	GtAuthErrorReasonInternalError
 	GtAuthErrorReasonInvalidCredentials
 	GtAuthErrorReasonInvalidSignature
@@ -43,7 +44,7 @@ func (t GtAuthErrorReason) String() string {
 
 type GtAuthError struct {
 	Reason GtAuthErrorReason
-	Err error
+	Err    error
 }
 
 func (e *GtAuthError) Error() string {
@@ -53,6 +54,6 @@ func (e *GtAuthError) Error() string {
 func NewGtAuthError(reason GtAuthErrorReason, err error) *GtAuthError {
 	return &GtAuthError{
 		Reason: reason,
-		Err: err,
+		Err:    err,
 	}
 }

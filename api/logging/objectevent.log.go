@@ -6,8 +6,9 @@ import (
 )
 
 type ObjectEventSub int
+
 const (
-	ObjectEventSubList	ObjectEventSub = iota
+	ObjectEventSubList ObjectEventSub = iota
 	ObjectEventSubTodo
 	ObjectEventSubUser
 )
@@ -25,8 +26,9 @@ func (e ObjectEventSub) String() string {
 }
 
 type ObjectEvent int
+
 const (
-	ObjectEventCreate	ObjectEvent = iota
+	ObjectEventCreate ObjectEvent = iota
 	ObjectEventRead
 	ObjectEventUpdate
 	ObjectEventDelete
@@ -65,7 +67,7 @@ func LogObjectEvent(
 		)
 	}
 
-	getSubject := func(subCur, subOld any) slog.Attr{
+	getSubject := func(subCur, subOld any) slog.Attr {
 		var groupCurrent *slog.Attr
 		var groupOld *slog.Attr
 
@@ -77,13 +79,13 @@ func LogObjectEvent(
 			if eventType == ObjectEventDelete {
 				gCur := slog.String("id", sc)
 				groupCurrent = &gCur
-				if so ,ok := subOld.(string); ok {
+				if so, ok := subOld.(string); ok {
 					gOld := slog.String("id", so)
 					groupOld = &gOld
 				}
 			}
 		case *db.Todo:
-			gCur :=slog.Group(
+			gCur := slog.Group(
 				curKey,
 				slog.String("id", sc.ID),
 				slog.String("title", sc.Title),
@@ -101,7 +103,7 @@ func LogObjectEvent(
 				groupOld = &gOld
 			}
 		case *db.List:
-			gCur :=slog.Group(
+			gCur := slog.Group(
 				curKey,
 				slog.String("id", sc.ID),
 				slog.String("title", sc.Title),
@@ -119,7 +121,7 @@ func LogObjectEvent(
 				groupOld = &gOld
 			}
 		case *db.CreateUserRow:
-			gCur :=slog.Group(
+			gCur := slog.Group(
 				curKey,
 				slog.String("id", sc.ID),
 				slog.String("username", sc.Username),

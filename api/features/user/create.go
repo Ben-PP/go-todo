@@ -56,7 +56,7 @@ func (controller *UserController) CreateUser(ctx *gin.Context) {
 
 	userUUID := uuid.New()
 	password := payload.Password
-	passwdHash,err := passwd.Hash(password)
+	passwdHash, err := passwd.Hash(password)
 	if err != nil {
 		_, file, line, _ := runtime.Caller(0)
 		mycontext.CtxAddGtInternalError("failed to hash new password", file, line, err, ctx)
@@ -64,10 +64,10 @@ func (controller *UserController) CreateUser(ctx *gin.Context) {
 	}
 
 	args := &db.CreateUserParams{
-		ID: userUUID.String(),
-		Username: payload.Username,
+		ID:           userUUID.String(),
+		Username:     payload.Username,
 		PasswordHash: passwdHash,
-		IsAdmin: makeAdmin,
+		IsAdmin:      makeAdmin,
 	}
 
 	user, err := controller.db.CreateUser(ctx, *args)

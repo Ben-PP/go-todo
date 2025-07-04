@@ -82,12 +82,12 @@ func (controller *TodoController) CreateTodo(ctx *gin.Context) {
 	}
 
 	args := &db.CreateTodoParams{
-		ID: uuid.New().String(),
-		ListID: listID,
-		UserID: reqUser.ID,
-		Title: payload.Title,
-		Description: pgtype.Text{String: description, Valid: true},
-		ParentID: pgtype.Text{String: *payload.ParentID, Valid: true},
+		ID:             uuid.New().String(),
+		ListID:         listID,
+		UserID:         reqUser.ID,
+		Title:          payload.Title,
+		Description:    pgtype.Text{String: description, Valid: true},
+		ParentID:       pgtype.Text{String: *payload.ParentID, Valid: true},
 		CompleteBefore: pgtype.Timestamp{Time: *payload.CompleteBefore, Valid: true},
 	}
 

@@ -42,7 +42,7 @@ func CtxAddGtInternalError(message, file string, line int, err error, c *gin.Con
 	c.Error(
 		gterrors.NewGtInternalError(
 			errToAdd,
-			txtutil.AddLineNumberToFileName(file,line),
+			txtutil.AddLineNumberToFileName(file, line),
 			500,
 		),
 	).SetType(gterrors.GetGinErrorType())

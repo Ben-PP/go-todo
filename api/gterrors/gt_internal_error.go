@@ -3,8 +3,8 @@ package gterrors
 import "fmt"
 
 type GtInternalError struct {
-	Err error
-	File string
+	Err            error
+	File           string
 	ResponseStatus int
 }
 
@@ -14,8 +14,8 @@ func (e *GtInternalError) Error() string {
 
 func NewGtInternalError(err error, file string, responseStatus int) *GtInternalError {
 	return &GtInternalError{
-		Err: err,
-		File: file,
+		Err:            err,
+		File:           file,
 		ResponseStatus: responseStatus,
 	}
 }

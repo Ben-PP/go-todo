@@ -6,7 +6,7 @@ import (
 )
 
 type TodoController struct {
-	db *db.Queries
+	db  *db.Queries
 	ctx context.Context
 }
 

@@ -47,9 +47,9 @@ func (controller *TodoController) CreateList(ctx *gin.Context) {
 	}
 
 	args := &db.CreateListParams{
-		ID: uuid.New().String(),
-		UserID: reqUser.ID,
-		Title: payload.Title,
+		ID:          uuid.New().String(),
+		UserID:      reqUser.ID,
+		Title:       payload.Title,
 		Description: payload.Description,
 	}
 

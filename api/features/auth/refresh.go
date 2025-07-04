@@ -74,7 +74,7 @@ func (controller *AuthController) Refresh(ctx *gin.Context) {
 		)).SetType(ginType)
 		return
 	}
-	
+
 	if dbToken.IsUsed {
 		logTokenEventUse(false, decodedRefreshToken, ctx)
 		logging.LogSecurityEvent(
@@ -85,8 +85,7 @@ func (controller *AuthController) Refresh(ctx *gin.Context) {
 			ctx.ClientIP(),
 		)
 		ginType := gterrors.GetGinErrorType()
-		if rows, err := controller.db.DeleteJwtTokenByFamily(ctx, dbToken.Family);
-		err != nil || rows == 0 {
+		if rows, err := controller.db.DeleteJwtTokenByFamily(ctx, dbToken.Family); err != nil || rows == 0 {
 			_, file, line, _ := runtime.Caller(0)
 			errIfNil := fmt.Errorf("failed to delete jwt family: %w", err)
 			if err == nil {
@@ -103,7 +102,7 @@ func (controller *AuthController) Refresh(ctx *gin.Context) {
 		).SetType(ginType)
 		return
 	}
-	
+
 	// This should always succeed if db works correctly as dbToken has to have
 	// userID. Errors are system failures.
 	user, err := controller.db.GetUserById(ctx, dbToken.UserID)
@@ -114,14 +113,16 @@ func (controller *AuthController) Refresh(ctx *gin.Context) {
 		return
 	}
 
-	logSessionRefresh := func (success bool){logging.LogSessionEvent(
-		success,
-		ctx.FullPath(),
-		user.Username,
-		logging.SessionEventTypeRefresh,
-		ctx.ClientIP(),
-	)}
-	
+	logSessionRefresh := func(success bool) {
+		logging.LogSessionEvent(
+			success,
+			ctx.FullPath(),
+			user.Username,
+			logging.SessionEventTypeRefresh,
+			ctx.ClientIP(),
+		)
+	}
+
 	refreshToken, refreshClaims, accessToken, accessClaims, err := generateTokens(
 		decodedRefreshToken.Family,
 		user,
@@ -144,13 +145,13 @@ func (controller *AuthController) Refresh(ctx *gin.Context) {
 	}
 
 	args := &db.CreateJwtTokenParams{
-		Jti: refreshClaims.ID,
-		UserID: refreshClaims.Subject,
-		Family: refreshClaims.Family,
-		CreatedAt: pgtype.Timestamp{Time: refreshClaims.IssuedAt.Time,Valid: true},
+		Jti:       refreshClaims.ID,
+		UserID:    refreshClaims.Subject,
+		Family:    refreshClaims.Family,
+		CreatedAt: pgtype.Timestamp{Time: refreshClaims.IssuedAt.Time, Valid: true},
 		ExpiresAt: pgtype.Timestamp{Time: refreshClaims.ExpiresAt.Time, Valid: true},
 	}
-	
+
 	if err := controller.db.CreateJwtToken(ctx, *args); err != nil {
 		logTokenEventUse(false, decodedRefreshToken, ctx)
 		logSessionRefresh(false)
@@ -160,11 +161,11 @@ func (controller *AuthController) Refresh(ctx *gin.Context) {
 	}
 
 	logSessionRefresh(true)
-	logTokenCreations([]*jwt.GtClaims{refreshClaims,accessClaims}, ctx)
+	logTokenCreations([]*jwt.GtClaims{refreshClaims, accessClaims}, ctx)
 	logTokenEventUse(true, decodedRefreshToken, ctx)
 	ctx.JSON(http.StatusOK, gin.H{
-		"status": "ok",
-		"access_token": accessToken,
+		"status":        "ok",
+		"access_token":  accessToken,
 		"refresh_token": refreshToken,
 	})
 }

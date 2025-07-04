@@ -84,9 +84,9 @@ func (controller *TodoController) UpdateList(ctx *gin.Context) {
 	}
 
 	args := &db.UpdateListParams{
-		Title: title,
+		Title:       title,
 		Description: description,
-		ID: listID,
+		ID:          listID,
 	}
 
 	newList, err := controller.db.UpdateList(ctx, *args)

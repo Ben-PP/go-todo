@@ -20,7 +20,7 @@ func (controller *AuthController) Logout(ctx *gin.Context) {
 	if ok := mycontext.ShouldBindBodyWithJSON(&payload, ctx); !ok {
 		return
 	}
-	
+
 	refreshToken := payload.RefreshToken
 
 	claims, err := jwt.DecodeRefreshToken(refreshToken)
@@ -44,8 +44,8 @@ func (controller *AuthController) Logout(ctx *gin.Context) {
 				gterrors.NewGtAuthError(
 					reason,
 					errors.Join(gterrors.ErrGtLogoutFailure, err),
-					),
-				).SetType(gterrors.GetGinErrorType())
+				),
+			).SetType(gterrors.GetGinErrorType())
 			return
 		}
 		// Should never get to here
@@ -70,8 +70,7 @@ func (controller *AuthController) Logout(ctx *gin.Context) {
 		return
 	}
 
-	if rows, err := controller.db.DeleteJwtTokenByFamily(ctx, claims.Family);
-	err != nil || rows == 0 {
+	if rows, err := controller.db.DeleteJwtTokenByFamily(ctx, claims.Family); err != nil || rows == 0 {
 		_, file, line, _ := runtime.Caller(0)
 		errIfNil := fmt.Errorf("failed to delete jwt family: %w", err)
 		if err == nil {
@@ -80,7 +79,7 @@ func (controller *AuthController) Logout(ctx *gin.Context) {
 		mycontext.CtxAddGtInternalError("", file, line, errIfNil, ctx)
 		return
 	}
-	
+
 	logging.LogSessionEvent(
 		true,
 		ctx.FullPath(),
