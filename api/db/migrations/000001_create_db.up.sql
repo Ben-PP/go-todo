@@ -35,8 +35,8 @@ CREATE TABLE IF NOT EXISTS list_shares(
 );
 
 CREATE TABLE IF NOT EXISTS todos(
-    id SERIAL PRIMARY KEY,
-    parent_id INTEGER,
+    id TEXT PRIMARY KEY,
+    parent_id TEXT,
     list_id TEXT NOT NULL,
     user_id TEXT NOT NULL,
     title TEXT NOT NULL,

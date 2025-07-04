@@ -2,6 +2,12 @@
 SELECT * FROM lists
 WHERE id = $1;
 
+-- name: GetListIdsAccessible :many
+SELECT id FROM lists l
+WHERE l.user_id = $1 OR id IN (
+    SELECT list_id FROM list_shares ls WHERE ls.user_id = $1
+);
+
 -- name: CreateList :one
 INSERT INTO lists (id, user_id, title, description)
 VALUES ($1, $2, $3, $4)

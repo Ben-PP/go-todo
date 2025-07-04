@@ -1,4 +1,4 @@
-package list
+package todo
 
 import (
 	"errors"
@@ -15,7 +15,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
-func (controller *ListController) CreateList(ctx *gin.Context) {
+func (controller *TodoController) CreateList(ctx *gin.Context) {
 	var payload *schemas.CreateList
 	if ok := mycontext.ShouldBindBodyWithJSON(&payload, ctx); !ok {
 		return

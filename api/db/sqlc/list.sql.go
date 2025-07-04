@@ -41,6 +41,19 @@ func (q *Queries) CreateList(ctx context.Context, arg CreateListParams) (List, e
 	return i, err
 }
 
+const deleteList = `-- name: DeleteList :execrows
+DELETE FROM lists
+WHERE id = $1
+`
+
+func (q *Queries) DeleteList(ctx context.Context, id string) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteList, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const getList = `-- name: GetList :one
 SELECT id, user_id, title, description, created_at, updated_at FROM lists
 WHERE id = $1
@@ -58,6 +71,33 @@ func (q *Queries) GetList(ctx context.Context, id string) (List, error) {
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const getListIdsAccessible = `-- name: GetListIdsAccessible :many
+SELECT id FROM lists l
+WHERE l.user_id = $1 OR id IN (
+    SELECT list_id FROM list_shares ls WHERE ls.user_id = $1
+)
+`
+
+func (q *Queries) GetListIdsAccessible(ctx context.Context, userID string) ([]string, error) {
+	rows, err := q.db.Query(ctx, getListIdsAccessible, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const updateList = `-- name: UpdateList :one

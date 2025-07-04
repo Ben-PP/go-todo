@@ -1,4 +1,4 @@
-package list
+package todo
 
 import (
 	"errors"
@@ -15,7 +15,7 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-func (controller *ListController) UpdateList(ctx *gin.Context) {
+func (controller *TodoController) UpdateList(ctx *gin.Context) {
 	var payload *schemas.UpdateList
 	if ok := mycontext.ShouldBindBodyWithJSON(&payload, ctx); !ok {
 		return
@@ -24,7 +24,7 @@ func (controller *ListController) UpdateList(ctx *gin.Context) {
 		return
 	}
 
-	listID := ctx.Param("id")
+	listID := ctx.Param("listID")
 
 	tokenUserId, tokenUserName, _, err := mycontext.GetTokenVariables(ctx)
 	if err != nil {

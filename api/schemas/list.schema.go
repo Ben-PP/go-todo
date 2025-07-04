@@ -6,6 +6,6 @@ type CreateList struct {
 }
 
 type UpdateList struct {
-	Title		*string
-	Description	*string
+	Title		*string	`json:"title"`
+	Description	*string	`json:"description"`
 }

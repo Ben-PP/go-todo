@@ -18,6 +18,14 @@ func LengthListTitle(txt string) bool {
 	return stringLength(txt, 50)
 }
 
+func LengthTodoTitle(txt string) bool {
+	return stringLength(txt, 50)
+}
+
+func LengthTodoDescription(txt string) bool {
+	return stringLength(txt, 200)
+}
+
 func Password(password string) (bool, error) {
 	if length := len(password); length < 8 || length > 32 {
 		return false, nil

@@ -32,8 +32,8 @@ type ListShare struct {
 }
 
 type Todo struct {
-	ID             int32            `json:"id"`
-	ParentID       pgtype.Int4      `json:"parent_id"`
+	ID             string           `json:"id"`
+	ParentID       pgtype.Text      `json:"parent_id"`
 	ListID         string           `json:"list_id"`
 	UserID         string           `json:"user_id"`
 	Title          string           `json:"title"`
