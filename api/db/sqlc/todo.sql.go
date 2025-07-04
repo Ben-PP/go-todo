@@ -53,3 +53,72 @@ func (q *Queries) CreateTodo(ctx context.Context, arg CreateTodoParams) (Todo, e
 	)
 	return i, err
 }
+
+const getTodoByIdWithListId = `-- name: GetTodoByIdWithListId :one
+SELECT id, parent_id, list_id, user_id, title, description, completed, created_at, updated_at, complete_before, completed_at FROM todos
+WHERE id = $1 AND list_id = $2
+`
+
+type GetTodoByIdWithListIdParams struct {
+	ID     string `json:"id"`
+	ListID string `json:"list_id"`
+}
+
+func (q *Queries) GetTodoByIdWithListId(ctx context.Context, arg GetTodoByIdWithListIdParams) (Todo, error) {
+	row := q.db.QueryRow(ctx, getTodoByIdWithListId, arg.ID, arg.ListID)
+	var i Todo
+	err := row.Scan(
+		&i.ID,
+		&i.ParentID,
+		&i.ListID,
+		&i.UserID,
+		&i.Title,
+		&i.Description,
+		&i.Completed,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.CompleteBefore,
+		&i.CompletedAt,
+	)
+	return i, err
+}
+
+const updateTodo = `-- name: UpdateTodo :one
+UPDATE todos
+SET title = $1, description = $2, completed = $3, complete_before = $4, updated_at = CURRENT_TIMESTAMP, completed_at = CASE WHEN $3 THEN CURRENT_TIMESTAMP ELSE NULL END
+WHERE id = $5
+RETURNING id, parent_id, list_id, user_id, title, description, completed, created_at, updated_at, complete_before, completed_at
+`
+
+type UpdateTodoParams struct {
+	Title          string           `json:"title"`
+	Description    pgtype.Text      `json:"description"`
+	Completed      bool             `json:"completed"`
+	CompleteBefore pgtype.Timestamp `json:"complete_before"`
+	ID             string           `json:"id"`
+}
+
+func (q *Queries) UpdateTodo(ctx context.Context, arg UpdateTodoParams) (Todo, error) {
+	row := q.db.QueryRow(ctx, updateTodo,
+		arg.Title,
+		arg.Description,
+		arg.Completed,
+		arg.CompleteBefore,
+		arg.ID,
+	)
+	var i Todo
+	err := row.Scan(
+		&i.ID,
+		&i.ParentID,
+		&i.ListID,
+		&i.UserID,
+		&i.Title,
+		&i.Description,
+		&i.Completed,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.CompleteBefore,
+		&i.CompletedAt,
+	)
+	return i, err
+}
