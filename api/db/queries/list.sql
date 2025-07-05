@@ -2,10 +2,28 @@
 SELECT * FROM lists
 WHERE id = $1;
 
+-- name: GetLists :many
+SELECT * FROM lists;
+
 -- name: GetListIdsAccessible :many
 SELECT id FROM lists l
 WHERE l.user_id = $1 OR id IN (
     SELECT list_id FROM list_shares ls WHERE ls.user_id = $1
+);
+
+-- name: GetListsByOwnerId :many
+SELECT * FROM lists
+WHERE user_id = $1;
+
+-- name: GetListsBySharedUserId :many
+SELECT l.* FROM lists l
+JOIN list_shares ls ON l.id = ls.list_id
+WHERE ls.user_id = $1;
+
+-- name: GetListsAccessibleByUserId :many
+SELECT l.* FROM lists l
+WHERE l.user_id = $1 OR l.id IN (
+    SELECT ls.list_id FROM list_shares ls WHERE ls.user_id = $1
 );
 
 -- name: CreateList :one

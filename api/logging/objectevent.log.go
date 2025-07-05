@@ -1,8 +1,10 @@
 package logging
 
 import (
-	db "go-todo/db/sqlc"
+	"fmt"
 	"log/slog"
+
+	db "go-todo/db/sqlc"
 )
 
 type ObjectEventSub int
@@ -120,6 +122,21 @@ func LogObjectEvent(
 				)
 				groupOld = &gOld
 			}
+		case []db.List:
+			fmt.Println("HERHEHRHEH")
+			ids := ""
+			for i, list := range sc {
+				if i != 0 {
+					ids = ids + ","
+				}
+				ids = ids + list.ID
+
+			}
+			gCur := slog.Group(
+				curKey,
+				slog.String("ids", ids),
+			)
+			groupCurrent = &gCur
 		case *db.CreateUserRow:
 			gCur := slog.Group(
 				curKey,

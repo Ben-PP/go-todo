@@ -19,6 +19,7 @@ func (routes *TodoRoutes) Register(rg *gin.RouterGroup) {
 
 	router.Use(middleware.JwtAuthMiddleware())
 
+	router.GET("/", routes.todoController.ReadLists)
 	router.POST("/", routes.todoController.CreateList)
 	router.PATCH("/:listID", routes.todoController.UpdateList)
 	router.DELETE("/:listID", routes.todoController.DeleteList)

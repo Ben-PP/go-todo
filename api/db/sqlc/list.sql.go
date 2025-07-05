@@ -115,6 +115,136 @@ func (q *Queries) GetListIdsAccessible(ctx context.Context, userID string) ([]st
 	return items, nil
 }
 
+const getLists = `-- name: GetLists :many
+SELECT id, user_id, title, description, created_at, updated_at FROM lists
+`
+
+func (q *Queries) GetLists(ctx context.Context) ([]List, error) {
+	rows, err := q.db.Query(ctx, getLists)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []List{}
+	for rows.Next() {
+		var i List
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Title,
+			&i.Description,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getListsAccessibleByUserId = `-- name: GetListsAccessibleByUserId :many
+SELECT l.id, l.user_id, l.title, l.description, l.created_at, l.updated_at FROM lists l
+WHERE l.user_id = $1 OR l.id IN (
+    SELECT ls.list_id FROM list_shares ls WHERE ls.user_id = $1
+)
+`
+
+func (q *Queries) GetListsAccessibleByUserId(ctx context.Context, userID string) ([]List, error) {
+	rows, err := q.db.Query(ctx, getListsAccessibleByUserId, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []List{}
+	for rows.Next() {
+		var i List
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Title,
+			&i.Description,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getListsByOwnerId = `-- name: GetListsByOwnerId :many
+SELECT id, user_id, title, description, created_at, updated_at FROM lists
+WHERE user_id = $1
+`
+
+func (q *Queries) GetListsByOwnerId(ctx context.Context, userID string) ([]List, error) {
+	rows, err := q.db.Query(ctx, getListsByOwnerId, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []List{}
+	for rows.Next() {
+		var i List
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Title,
+			&i.Description,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getListsBySharedUserId = `-- name: GetListsBySharedUserId :many
+SELECT l.id, l.user_id, l.title, l.description, l.created_at, l.updated_at FROM lists l
+JOIN list_shares ls ON l.id = ls.list_id
+WHERE ls.user_id = $1
+`
+
+func (q *Queries) GetListsBySharedUserId(ctx context.Context, userID string) ([]List, error) {
+	rows, err := q.db.Query(ctx, getListsBySharedUserId, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []List{}
+	for rows.Next() {
+		var i List
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Title,
+			&i.Description,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateList = `-- name: UpdateList :one
 UPDATE lists
 SET title = $1, description = $2, updated_at = CURRENT_TIMESTAMP
