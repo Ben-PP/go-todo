@@ -9,17 +9,3 @@ services:
     volumes:
       - ./postgresql/data:/var/lib/postgresql/data
     restart: no
-
-  pgadmin:
-    image: dpage/pgadmin4
-    environment:
-      PGADMIN_DEFAULT_EMAIL: test@test.com
-      PGADMIN_DEFAULT_PASSWORD: mysecretpassword
-    volumes:
-      - ./pgadmin/servers.json:/pgadmin4/servers.json
-    ports:
-      - 81:80
-    depends_on:
-      - db
-    attach: false
-    restart: 'no'
