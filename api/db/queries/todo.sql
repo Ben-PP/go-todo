@@ -7,6 +7,10 @@ RETURNING *;
 SELECT * FROM todos
 WHERE id = $1 AND list_id = $2;
 
+-- name: GetTodosByList :many
+SELECT * FROM todos
+WHERE list_id = $1;
+
 -- name: UpdateTodo :one
 UPDATE todos
 SET title = $1, description = $2, completed = $3, complete_before = $4, updated_at = CURRENT_TIMESTAMP, completed_at = CASE WHEN $3 THEN CURRENT_TIMESTAMP ELSE NULL END

@@ -108,6 +108,43 @@ func (q *Queries) GetTodoByIdWithListId(ctx context.Context, arg GetTodoByIdWith
 	return i, err
 }
 
+const getTodosByList = `-- name: GetTodosByList :many
+SELECT id, parent_id, list_id, user_id, title, description, completed, created_at, updated_at, complete_before, completed_at FROM todos
+WHERE list_id = $1
+`
+
+func (q *Queries) GetTodosByList(ctx context.Context, listID string) ([]Todo, error) {
+	rows, err := q.db.Query(ctx, getTodosByList, listID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Todo{}
+	for rows.Next() {
+		var i Todo
+		if err := rows.Scan(
+			&i.ID,
+			&i.ParentID,
+			&i.ListID,
+			&i.UserID,
+			&i.Title,
+			&i.Description,
+			&i.Completed,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.CompleteBefore,
+			&i.CompletedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const updateTodo = `-- name: UpdateTodo :one
 UPDATE todos
 SET title = $1, description = $2, completed = $3, complete_before = $4, updated_at = CURRENT_TIMESTAMP, completed_at = CASE WHEN $3 THEN CURRENT_TIMESTAMP ELSE NULL END

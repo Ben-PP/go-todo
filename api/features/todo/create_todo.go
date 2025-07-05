@@ -2,6 +2,10 @@ package todo
 
 import (
 	"errors"
+	"runtime"
+	"slices"
+	"time"
+
 	db "go-todo/db/sqlc"
 	"go-todo/gterrors"
 	"go-todo/logging"
@@ -9,8 +13,6 @@ import (
 	"go-todo/util/database"
 	"go-todo/util/mycontext"
 	"go-todo/util/validate"
-	"runtime"
-	"slices"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -81,14 +83,25 @@ func (controller *TodoController) CreateTodo(ctx *gin.Context) {
 		return
 	}
 
+	parentID := ""
+	if payload.ParentID != nil {
+		parentID = *payload.ParentID
+	}
+	var completeBefore time.Time
+	if payload.CompleteBefore != nil {
+		completeBefore = *payload.CompleteBefore
+	} else {
+		completeBefore = time.Date(1970, 0o1, 0o1, 0o0, 0o0, 0o0, 0o0, time.UTC)
+	}
+
 	args := &db.CreateTodoParams{
 		ID:             uuid.New().String(),
 		ListID:         listID,
 		UserID:         reqUser.ID,
 		Title:          payload.Title,
 		Description:    pgtype.Text{String: description, Valid: true},
-		ParentID:       pgtype.Text{String: *payload.ParentID, Valid: true},
-		CompleteBefore: pgtype.Timestamp{Time: *payload.CompleteBefore, Valid: true},
+		ParentID:       pgtype.Text{String: parentID, Valid: payload.ParentID != nil},
+		CompleteBefore: pgtype.Timestamp{Time: completeBefore, Valid: payload.CompleteBefore != nil},
 	}
 
 	todo, err := controller.db.CreateTodo(ctx, *args)

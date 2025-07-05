@@ -20,6 +20,7 @@ func (routes *TodoRoutes) Register(rg *gin.RouterGroup) {
 	router.Use(middleware.JwtAuthMiddleware())
 
 	router.GET("/", routes.todoController.ReadLists)
+	router.GET("/:listID", routes.todoController.ReadListWithTodos)
 	router.POST("/", routes.todoController.CreateList)
 	router.PATCH("/:listID", routes.todoController.UpdateList)
 	router.DELETE("/:listID", routes.todoController.DeleteList)
@@ -28,11 +29,8 @@ func (routes *TodoRoutes) Register(rg *gin.RouterGroup) {
 	todoRouter.POST("/", routes.todoController.CreateTodo)
 	todoRouter.PATCH("/:todoID", routes.todoController.UpdateTodo)
 	todoRouter.DELETE("/:todoID", routes.todoController.DeleteTodo)
-	// TODO Implement read for todos
 
 	// TODO Implement create share
 	// TODO Implement delete share
 	// TODO Implement get shares
-
-	// TODO Implement read lists
 }
