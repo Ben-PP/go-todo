@@ -21,10 +21,17 @@ func (routes *TodoRoutes) Register(rg *gin.RouterGroup) {
 
 	router.POST("/", routes.todoController.CreateList)
 	router.PATCH("/:listID", routes.todoController.UpdateList)
+	router.DELETE("/:listID", routes.todoController.DeleteList)
 
 	todoRouter := router.Group("/:listID/todo")
 	todoRouter.POST("/", routes.todoController.CreateTodo)
 	todoRouter.PATCH("/:todoID", routes.todoController.UpdateTodo)
 	todoRouter.DELETE("/:todoID", routes.todoController.DeleteTodo)
-	// TODO Implement GET for todos
+	// TODO Implement read for todos
+
+	// TODO Implement create share
+	// TODO Implement delete share
+	// TODO Implement get shares
+
+	// TODO Implement read lists
 }

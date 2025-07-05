@@ -22,3 +22,7 @@ RETURNING *;
 -- name: DeleteList :execrows
 DELETE FROM lists
 WHERE id = $1;
+
+-- name: DeleteListByIdWithUserId :exec
+DELETE FROM lists
+WHERE id = $1 AND user_id = $2;

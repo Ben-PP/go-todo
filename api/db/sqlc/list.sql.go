@@ -54,6 +54,21 @@ func (q *Queries) DeleteList(ctx context.Context, id string) (int64, error) {
 	return result.RowsAffected(), nil
 }
 
+const deleteListByIdWithUserId = `-- name: DeleteListByIdWithUserId :exec
+DELETE FROM lists
+WHERE id = $1 AND user_id = $2
+`
+
+type DeleteListByIdWithUserIdParams struct {
+	ID     string `json:"id"`
+	UserID string `json:"user_id"`
+}
+
+func (q *Queries) DeleteListByIdWithUserId(ctx context.Context, arg DeleteListByIdWithUserIdParams) error {
+	_, err := q.db.Exec(ctx, deleteListByIdWithUserId, arg.ID, arg.UserID)
+	return err
+}
+
 const getList = `-- name: GetList :one
 SELECT id, user_id, title, description, created_at, updated_at FROM lists
 WHERE id = $1
