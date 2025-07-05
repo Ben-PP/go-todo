@@ -25,4 +25,6 @@ func (routes *TodoRoutes) Register(rg *gin.RouterGroup) {
 	todoRouter := router.Group("/:listID/todo")
 	todoRouter.POST("/", routes.todoController.CreateTodo)
 	todoRouter.PATCH("/:todoID", routes.todoController.UpdateTodo)
+	todoRouter.DELETE("/:todoID", routes.todoController.DeleteTodo)
+	// TODO Implement GET for todos
 }

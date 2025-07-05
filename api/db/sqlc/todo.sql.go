@@ -54,6 +54,31 @@ func (q *Queries) CreateTodo(ctx context.Context, arg CreateTodoParams) (Todo, e
 	return i, err
 }
 
+const deleteTodo = `-- name: DeleteTodo :exec
+DELETE FROM todos
+WHERE id = $1
+`
+
+func (q *Queries) DeleteTodo(ctx context.Context, id string) error {
+	_, err := q.db.Exec(ctx, deleteTodo, id)
+	return err
+}
+
+const deleteTodoByIdWithListId = `-- name: DeleteTodoByIdWithListId :exec
+DELETE FROM todos
+WHERE id = $1 AND list_id = $2
+`
+
+type DeleteTodoByIdWithListIdParams struct {
+	ID     string `json:"id"`
+	ListID string `json:"list_id"`
+}
+
+func (q *Queries) DeleteTodoByIdWithListId(ctx context.Context, arg DeleteTodoByIdWithListIdParams) error {
+	_, err := q.db.Exec(ctx, deleteTodoByIdWithListId, arg.ID, arg.ListID)
+	return err
+}
+
 const getTodoByIdWithListId = `-- name: GetTodoByIdWithListId :one
 SELECT id, parent_id, list_id, user_id, title, description, completed, created_at, updated_at, complete_before, completed_at FROM todos
 WHERE id = $1 AND list_id = $2

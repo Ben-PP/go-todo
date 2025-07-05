@@ -12,3 +12,11 @@ UPDATE todos
 SET title = $1, description = $2, completed = $3, complete_before = $4, updated_at = CURRENT_TIMESTAMP, completed_at = CASE WHEN $3 THEN CURRENT_TIMESTAMP ELSE NULL END
 WHERE id = $5
 RETURNING *;
+
+-- name: DeleteTodo :exec
+DELETE FROM todos
+WHERE id = $1;
+
+-- name: DeleteTodoByIdWithListId :exec
+DELETE FROM todos
+WHERE id = $1 AND list_id = $2;
