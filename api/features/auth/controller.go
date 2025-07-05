@@ -11,7 +11,7 @@ import (
 )
 
 type AuthController struct {
-	db *db.Queries
+	db  *db.Queries
 	ctx context.Context
 }
 
@@ -20,7 +20,7 @@ func NewController(db *db.Queries, ctx context.Context) *AuthController {
 }
 
 func logTokenEventUse(success bool, token *jwt.GtClaims, c *gin.Context) {
-	logging.LogTokenEvent(success, c.FullPath(), logging.TokenEventTypeUse,	c.RemoteIP(), token)
+	logging.LogTokenEvent(success, c.FullPath(), logging.TokenEventTypeUse, c.RemoteIP(), token)
 }
 
 func logTokenCreations(claims []*jwt.GtClaims, c *gin.Context) {
@@ -41,8 +41,8 @@ func generateTokens(family string, user db.User) (
 	accessToken string,
 	accessClaims *jwt.GtClaims,
 	err error,
-	) {
-		refreshToken, refreshClaims, err = jwt.GenerateRefreshJwt(
+) {
+	refreshToken, refreshClaims, err = jwt.GenerateRefreshJwt(
 		user.Username,
 		user.ID,
 		user.IsAdmin,

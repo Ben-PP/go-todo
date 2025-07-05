@@ -7,14 +7,14 @@ import (
 )
 
 func Logger() gin.HandlerFunc {
-  return func(c *gin.Context) {
-	  c.Next()
-	  logging.LogReq(
-		c.ClientIP(),
-		c.Request.Method,
-		c.FullPath(),
-		c.Request.UserAgent(),
-		c.Writer.Status(),
-	)
-  }
+	return func(c *gin.Context) {
+		c.Next()
+		logging.LogReq(
+			c.ClientIP(),
+			c.Request.Method,
+			c.FullPath(),
+			c.Request.UserAgent(),
+			c.Writer.Status(),
+		)
+	}
 }

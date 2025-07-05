@@ -17,17 +17,17 @@ CREATE TABLE IF NOT EXISTS jwt_tokens(
 );
 
 CREATE TABLE IF NOT EXISTS lists(
-    id SERIAL PRIMARY KEY,
+    id TEXT PRIMARY KEY,
     user_id TEXT NOT NULL,
     title TEXT NOT NULL,
-    description TEXT,
+    description TEXT NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS list_shares(
-    list_id INTEGER NOT NULL,
+    list_id TEXT NOT NULL,
     user_id TEXT NOT NULL,
     PRIMARY KEY (list_id, user_id),
     FOREIGN KEY (list_id) REFERENCES lists(id) ON DELETE CASCADE,
@@ -35,9 +35,9 @@ CREATE TABLE IF NOT EXISTS list_shares(
 );
 
 CREATE TABLE IF NOT EXISTS todos(
-    id SERIAL PRIMARY KEY,
-    parent_id INTEGER,
-    list_id INTEGER NOT NULL,
+    id TEXT PRIMARY KEY,
+    parent_id TEXT,
+    list_id TEXT NOT NULL,
     user_id TEXT NOT NULL,
     title TEXT NOT NULL,
     description TEXT,

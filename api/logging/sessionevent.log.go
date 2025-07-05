@@ -5,13 +5,14 @@ import (
 )
 
 type SessionEventType int
-const(
-	SessionEventTypeLogin		SessionEventType = iota
+
+const (
+	SessionEventTypeLogin SessionEventType = iota
 	SessionEventTypeLogout
 	SessionEventTypeRefresh
 )
 
-func (s SessionEventType)String() string {
+func (s SessionEventType) String() string {
 	switch s {
 	case SessionEventTypeLogin:
 		return "session:login"

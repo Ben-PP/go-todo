@@ -35,7 +35,7 @@ func JwtAuthMiddleware() gin.HandlerFunc {
 				default:
 					reason = gterrors.GtAuthErrorReasonInternalError
 				}
-				
+
 				c.Error(gterrors.NewGtAuthError(reason, jwtErr.Err)).SetType(ginType)
 				c.Abort()
 				return

@@ -3,16 +3,18 @@ package logging
 import "log/slog"
 
 type SecurityScore int
+
 const (
-	SecurityScoreLow		SecurityScore = 1
-	SecurityScoreMedium		SecurityScore = 5
-	SecurityScoreHigh		SecurityScore = 10
-	SecurityScoreCritical	SecurityScore = 15
+	SecurityScoreLow      SecurityScore = 1
+	SecurityScoreMedium   SecurityScore = 5
+	SecurityScoreHigh     SecurityScore = 10
+	SecurityScoreCritical SecurityScore = 15
 )
+
 type SecurityEventName int
 
 const (
-	SecurityEventFailedLogin			SecurityEventName = iota
+	SecurityEventFailedLogin SecurityEventName = iota
 	SecurityEventForbiddenAction
 	SecurityEventJwtSignatureInvalid
 	SecurityEventJwtReuse
@@ -21,7 +23,7 @@ const (
 	SecurityEventLoginToUnknownUsername
 )
 
-func (s SecurityEventName)String() string {
+func (s SecurityEventName) String() string {
 	switch s {
 	case SecurityEventFailedLogin:
 		return "failed-login"
@@ -36,7 +38,7 @@ func (s SecurityEventName)String() string {
 	case SecurityEventJwtUnknown:
 		return "jwt-unknown"
 	}
-	return "unknown"	
+	return "unknown"
 }
 
 func LogSecurityEvent(
@@ -45,7 +47,7 @@ func LogSecurityEvent(
 	targetPath string,
 	target string,
 	violator string,
-	) {
+) {
 	log(
 		slog.LevelInfo,
 		"Security event has happened",

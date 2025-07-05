@@ -11,6 +11,7 @@ import (
 
 	db "go-todo/db/sqlc"
 	"go-todo/features/auth"
+	"go-todo/features/todo"
 	"go-todo/features/user"
 	"go-todo/logging"
 	"go-todo/middleware"
@@ -20,66 +21,67 @@ import (
 )
 
 var (
-    ctx context.Context
+	ctx context.Context
 )
 
 func main() {
-    appLogger := logging.GetLogger()
-    slog.SetDefault(appLogger)
+	appLogger := logging.GetLogger()
+	slog.SetDefault(appLogger)
 
-    config, err := config.Get()
-    if err != nil {
-        _, file, line, _ := runtime.Caller(1)
-        logging.LogError(err, fmt.Sprintf("%v: %d", file, line), "Failed to load config.")
-        return
-    }
-    
-    conn, err := pgx.Connect(context.Background(), config.DbUrl)
-    if err != nil {
-        _, file, line, _ := runtime.Caller(1)
-        logging.LogError(err, fmt.Sprintf("%v: %d", file, line), "Failed to connect to database.")
-        return
-    } else {
-        fmt.Println("Connected to database")
-    }
+	config, err := config.Get()
+	if err != nil {
+		_, file, line, _ := runtime.Caller(1)
+		logging.LogError(err, fmt.Sprintf("%v: %d", file, line), "Failed to load config.")
+		return
+	}
 
-    defer conn.Close(ctx)
+	conn, err := pgx.Connect(context.Background(), config.DbUrl)
+	if err != nil {
+		_, file, line, _ := runtime.Caller(1)
+		logging.LogError(err, fmt.Sprintf("%v: %d", file, line), "Failed to connect to database.")
+		return
+	} else {
+		fmt.Println("Connected to database")
+	}
 
-    mydb := db.New(conn)
+	defer conn.Close(ctx)
 
-    authController := auth.NewController(mydb, ctx)
-    authRoutes := auth.NewRoutes(authController)
-    userController := user.NewController(mydb, ctx)
-    userRoutes := user.NewRoutes(userController)
+	mydb := db.New(conn)
 
-    router := gin.Default()
+	authController := auth.NewController(mydb, ctx)
+	authRoutes := auth.NewRoutes(authController)
+	userController := user.NewController(mydb, ctx)
+	userRoutes := user.NewRoutes(userController)
+	listController := todo.NewController(mydb, ctx)
+	listRoutes := todo.NewRoutes(listController)
 
-    router.Use(middleware.Logger())
-    router.Use(middleware.ErrorHandlerMiddleware())
-    router.Use(gin.LoggerWithFormatter(func(param gin.LogFormatterParams) string {
-            return fmt.Sprintf("%s - [%s] \"%s %s %s %d \"%s\" %s\"\n",
-        param.ClientIP,
-        param.TimeStamp.Format(time.RFC1123),
-        param.Method,
-        param.Path,
-        param.Request.Proto,
-        param.StatusCode,
-        param.Request.UserAgent(),
-        param.ErrorMessage,
-    )
-    }))
-    
-    {
-        v1 := router.Group("/api/v1")
-        v1.GET("/status", func(ctx *gin.Context) {
-            ctx.JSON(200, gin.H{"status": "ok"})
-        })
-        authRoutes.Register(v1)
-        userRoutes.Register(v1)    
-    }
+	router := gin.Default()
 
+	router.Use(middleware.Logger())
+	router.Use(middleware.ErrorHandlerMiddleware())
+	router.Use(gin.LoggerWithFormatter(func(param gin.LogFormatterParams) string {
+		return fmt.Sprintf("%s - [%s] \"%s %s %s %d \"%s\" %s\"\n",
+			param.ClientIP,
+			param.TimeStamp.Format(time.RFC1123),
+			param.Method,
+			param.Path,
+			param.Request.Proto,
+			param.StatusCode,
+			param.Request.UserAgent(),
+			param.ErrorMessage,
+		)
+	}))
 
-    slog.Info("Starting server.")
-    router.Run("localhost:8000")
+	{
+		v1 := router.Group("/api/v1")
+		v1.GET("/status", func(ctx *gin.Context) {
+			ctx.JSON(200, gin.H{"status": "ok"})
+		})
+		authRoutes.Register(v1)
+		userRoutes.Register(v1)
+		listRoutes.Register(v1)
+	}
+
+	slog.Info("Starting server.")
+	router.Run("localhost:8000")
 }
-

@@ -47,7 +47,7 @@ func (controller *AuthController) Login(ctx *gin.Context) {
 			logging.LogSecurityEvent(
 				logging.SecurityScoreLow,
 				logging.SecurityEventLoginToUnknownUsername,
-			ctx.FullPath(),
+				ctx.FullPath(),
 				username,
 				ctx.ClientIP(),
 			)
@@ -102,15 +102,15 @@ func (controller *AuthController) Login(ctx *gin.Context) {
 	}
 
 	args := &db.CreateJwtTokenParams{
-		Jti: refreshClaims.ID,
-		UserID: refreshClaims.Subject,
-		Family: refreshClaims.Family,
-		CreatedAt: pgtype.Timestamp{Time: refreshClaims.IssuedAt.Time,Valid: true},
+		Jti:       refreshClaims.ID,
+		UserID:    refreshClaims.Subject,
+		Family:    refreshClaims.Family,
+		CreatedAt: pgtype.Timestamp{Time: refreshClaims.IssuedAt.Time, Valid: true},
 		ExpiresAt: pgtype.Timestamp{Time: refreshClaims.ExpiresAt.Time, Valid: true},
 	}
-	
+
 	if err := controller.db.CreateJwtToken(ctx, *args); err != nil {
-		_, file, line, _ := runtime.Caller(0)	
+		_, file, line, _ := runtime.Caller(0)
 		failedToSaveJwtToDbError(err, file, line, ctx)
 		return
 	}
@@ -122,10 +122,10 @@ func (controller *AuthController) Login(ctx *gin.Context) {
 		logging.SessionEventTypeLogin,
 		ctx.ClientIP(),
 	)
-	logTokenCreations([]*jwt.GtClaims{refreshClaims,accessClaims}, ctx)
+	logTokenCreations([]*jwt.GtClaims{refreshClaims, accessClaims}, ctx)
 	ctx.JSON(http.StatusOK, gin.H{
-		"status": "ok",
-		"access_token": accessToken,
+		"status":        "ok",
+		"access_token":  accessToken,
 		"refresh_token": refreshToken,
 	})
 }

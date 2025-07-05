@@ -106,9 +106,9 @@ func (controller *UserController) UpdateUser(ctx *gin.Context) {
 	}
 
 	args := &db.UpdateUserParams{
-		ID: userIDToUpdate,
+		ID:       userIDToUpdate,
 		Username: payload.Username,
-		IsAdmin: *payload.IsAdmin,
+		IsAdmin:  *payload.IsAdmin,
 	}
 
 	updatedUser, err := controller.db.UpdateUser(ctx, *args)
@@ -116,7 +116,7 @@ func (controller *UserController) UpdateUser(ctx *gin.Context) {
 		var pgErr *pgconn.PgError
 		errMessage := "failed to update user"
 		if errors.As(err, &pgErr) {
-			fmt.Println("pgErr: ",pgErr)
+			fmt.Println("pgErr: ", pgErr)
 			switch pgErr.Code {
 			case "23505":
 				ctx.Error(gterrors.ErrUniqueViolation).SetType(gin.ErrorTypePublic)
@@ -136,7 +136,7 @@ func (controller *UserController) UpdateUser(ctx *gin.Context) {
 			var pgErr *pgconn.PgError
 			errMessage := "failed to delete old jwts"
 			if errors.As(err, &pgErr) {
-				fmt.Println("pgErr: ",pgErr)
+				fmt.Println("pgErr: ", pgErr)
 				switch pgErr.Code {
 				default:
 					_, file, line, _ := runtime.Caller(0)
@@ -159,6 +159,6 @@ func (controller *UserController) UpdateUser(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusOK, gin.H{
 		"status": "ok",
-		"user": updatedUser,
+		"user":   updatedUser,
 	})
 }

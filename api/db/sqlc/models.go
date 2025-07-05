@@ -18,23 +18,23 @@ type JwtToken struct {
 }
 
 type List struct {
-	ID          int32            `json:"id"`
+	ID          string           `json:"id"`
 	UserID      string           `json:"user_id"`
 	Title       string           `json:"title"`
-	Description pgtype.Text      `json:"description"`
+	Description string           `json:"description"`
 	CreatedAt   pgtype.Timestamp `json:"created_at"`
 	UpdatedAt   pgtype.Timestamp `json:"updated_at"`
 }
 
 type ListShare struct {
-	ListID int32  `json:"list_id"`
+	ListID string `json:"list_id"`
 	UserID string `json:"user_id"`
 }
 
 type Todo struct {
-	ID             int32            `json:"id"`
-	ParentID       pgtype.Int4      `json:"parent_id"`
-	ListID         int32            `json:"list_id"`
+	ID             string           `json:"id"`
+	ParentID       pgtype.Text      `json:"parent_id"`
+	ListID         string           `json:"list_id"`
 	UserID         string           `json:"user_id"`
 	Title          string           `json:"title"`
 	Description    pgtype.Text      `json:"description"`
