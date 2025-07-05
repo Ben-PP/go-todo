@@ -41,7 +41,7 @@ func (controller *TodoController) CreateTodo(ctx *gin.Context) {
 	}
 	if payload.Description != nil {
 		if ok := validate.LengthTodoDescription(*payload.Description); !ok {
-			ctx.Error(gterrors.NewGtValueError(payload.Title, "description too long"))
+			ctx.Error(gterrors.NewGtValueError(*payload.Description, "description too long"))
 			return
 		}
 		description = *payload.Description

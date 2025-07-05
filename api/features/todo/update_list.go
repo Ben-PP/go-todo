@@ -2,14 +2,15 @@ package todo
 
 import (
 	"errors"
-	"fmt"
+	"runtime"
+
 	db "go-todo/db/sqlc"
 	"go-todo/gterrors"
 	"go-todo/logging"
 	"go-todo/schemas"
+	"go-todo/util/database"
 	"go-todo/util/mycontext"
 	"go-todo/util/validate"
-	"runtime"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5"
@@ -33,7 +34,7 @@ func (controller *TodoController) UpdateList(ctx *gin.Context) {
 		return
 	}
 
-	reqUser, err := controller.db.GetUserById(ctx, tokenUserId)
+	reqUser, err := database.GetUserById(controller.db, tokenUserId, ctx)
 	if err != nil {
 		logging.LogSecurityEvent(
 			logging.SecurityScoreLow,
@@ -42,12 +43,6 @@ func (controller *TodoController) UpdateList(ctx *gin.Context) {
 			tokenUserName,
 			ctx.ClientIP(),
 		)
-		ctx.Error(
-			gterrors.NewGtAuthError(
-				gterrors.GtAuthErrorReasonJwtUserNotFound,
-				fmt.Errorf("could not get user from db: %w", err),
-			),
-		).SetType(gterrors.GetGinErrorType())
 		return
 	}
 
@@ -100,7 +95,7 @@ func (controller *TodoController) UpdateList(ctx *gin.Context) {
 		ctx.FullPath(),
 		ctx.ClientIP(),
 		logging.ObjectEventUpdate,
-		&reqUser,
+		reqUser,
 		&newList,
 		&oldList,
 		logging.ObjectEventSubList,

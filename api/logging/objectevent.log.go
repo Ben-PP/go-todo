@@ -1,7 +1,6 @@
 package logging
 
 import (
-	"fmt"
 	"log/slog"
 
 	db "go-todo/db/sqlc"
@@ -123,7 +122,6 @@ func LogObjectEvent(
 				groupOld = &gOld
 			}
 		case []db.List:
-			fmt.Println("HERHEHRHEH")
 			ids := ""
 			for i, list := range sc {
 				if i != 0 {

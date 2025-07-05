@@ -84,7 +84,7 @@ func (controller *TodoController) ReadLists(ctx *gin.Context) {
 			fmt.Sprintf("failed to get lists with show: %v", show),
 			file,
 			line,
-			err,
+			switchErr,
 			ctx,
 		)
 		return
