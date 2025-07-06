@@ -16,6 +16,7 @@ func NewRoutes(userController *UserController) *UserRoutes {
 
 func (routes *UserRoutes) Register(rg *gin.RouterGroup) {
 	router := rg.Group("/user")
+	router.GET("/:userID", middleware.JwtAuthMiddleware(), routes.userController.ReadUser)
 	router.POST("/", routes.userController.CreateUser)
 	router.PATCH("/:id", middleware.JwtAuthMiddleware(), routes.userController.UpdateUser)
 	router.DELETE("/:id", middleware.JwtAuthMiddleware(), routes.userController.DeleteUser)
