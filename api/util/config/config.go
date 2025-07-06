@@ -10,6 +10,7 @@ import (
 var ErrConfigLoadFailed = errors.New("failed to load config")
 
 type Config struct {
+	Host                 string `mapstructure:"HOST"`
 	DbUrl                string `mapstructure:"DB_URL"`
 	AccessTokenLifeSpan  int    `mapstructure:"ACCESS_TOKEN_LIFE_SPAN"`
 	RefreshTokenLifeSpan int    `mapstructure:"REFRESH_TOKEN_LIFE_SPAN"`

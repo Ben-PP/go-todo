@@ -20,9 +20,7 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-var (
-	ctx context.Context
-)
+var ctx context.Context
 
 func main() {
 	appLogger := logging.GetLogger()
@@ -83,5 +81,5 @@ func main() {
 	}
 
 	slog.Info("Starting server.")
-	router.Run("localhost:8000")
+	router.Run(fmt.Sprintf("%v:8000", config.Host))
 }
