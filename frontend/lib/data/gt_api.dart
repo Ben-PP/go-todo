@@ -272,6 +272,8 @@ class GtApi {
         var prefs = SharedPreferencesAsync();
         await prefs.remove('accessJWT');
         await prefs.remove('refreshJWT');
+        refreshJWT = null;
+        accessJWT = null;
         return;
       }
 
