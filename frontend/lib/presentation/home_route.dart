@@ -19,7 +19,7 @@ class _HomeRouteState extends ConsumerState<HomeRoute> {
   Widget build(BuildContext context) {
     var authState = ref.watch(authenticationProvider);
     var hasAuthError = authState == AuthState.error;
-    var isRetrying = false;
+    var isRetrying = false; // TODO Move this
     if (hasAuthError) {
       return RouteScaffold(
           body: Center(

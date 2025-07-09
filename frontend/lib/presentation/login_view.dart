@@ -35,6 +35,9 @@ class _LoginViewState extends ConsumerState<LoginView> {
       ScaffoldMessenger.of(context).showSnackBar(snackBar);
       return;
     }
+    setState(() {
+      isLoading = true;
+    });
     var snackMessage = '';
     var isError = false;
     try {
@@ -67,6 +70,9 @@ class _LoginViewState extends ConsumerState<LoginView> {
       snackMessage = 'This error was not handled at all. Fix the thrash...';
       isError = true;
     } finally {
+      setState(() {
+        isLoading = false;
+      });
       if (context.mounted) {
         ScaffoldMessenger.of(context).clearSnackBars();
         ScaffoldMessenger.of(context).showSnackBar(
