@@ -7,6 +7,8 @@ import 'package:go_todo/data/gt_api.dart';
 import 'package:go_todo/presentation/api_url_route.dart';
 import 'package:go_todo/presentation/home_route.dart';
 import 'package:go_todo/presentation/route_scaffold.dart';
+import 'package:go_todo/src/create_gt_route.dart';
+import 'package:go_todo/widgets/gt_loading_page.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
@@ -16,73 +18,49 @@ class SplashScreen extends ConsumerStatefulWidget {
 }
 
 class _SplashScreenState extends ConsumerState<SplashScreen> {
-  var hasBaseUrl = GtApi().baseUrl != null;
-
   late final Future<void> initFuture;
 
   @override
   void initState() {
     super.initState();
     initFuture = _redirect();
+
+    // Set up periodic JWT refresh
+    Timer.periodic(const Duration(minutes: 25), (timer) {
+      if (GtApi().refreshJWT != null) {
+        ref.read(authenticationProvider.notifier).refresh();
+      }
+    });
   }
 
   Future<void> _redirect() async {
     await Future.delayed(const Duration(seconds: 0));
     await GtApi().init();
-    var baseUrl = GtApi().baseUrl;
 
-    if (baseUrl != null) {
-      setState(() {
-        hasBaseUrl = true;
-      });
-    }
-    if (GtApi().refreshJWT != null) {
-      await ref.read(authenticationProvider.notifier).refresh();
-    }
-    // Set up periodic JWT refresh
-    Timer.periodic(const Duration(minutes: 25), (timer) async {
-      if (GtApi().refreshJWT != null) {
-        ref.read(authenticationProvider.notifier).refresh();
-        //await GtApi().refresh();
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (GtApi().baseUrl == null) {
+        Navigator.of(context).push(createGtRoute(context, const ApiUrlRoute()));
+      } else {
+        await ref.read(authenticationProvider.notifier).refresh();
       }
     });
   }
 
-  toggleHasBaseUrl() {
-    setState(() {
-      hasBaseUrl = !hasBaseUrl;
-    });
-  }
-
-  Widget buildHomeRoute() {
-    if (!hasBaseUrl) {
-      return ApiUrlRoute(onSuccess: toggleHasBaseUrl);
-    }
-    return const HomeRoute();
-  }
-
   @override
   Widget build(BuildContext context) {
-    const circleSize = 200.0;
-
     return FutureBuilder(
         future: initFuture,
         builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
+          if (snapshot.connectionState == ConnectionState.waiting &&
+              ref.watch(authenticationProvider) == AuthState.pending) {
             return const RouteScaffold(
-              body: Center(
-                child: SizedBox(
-                  width: circleSize,
-                  height: circleSize,
-                  child: CircularProgressIndicator(),
-                ),
-              ),
+              body: GtLoadingPage(),
             );
           }
           if (snapshot.hasError) {
             return Center(child: Text('Error: ${snapshot.error}'));
           }
-          return buildHomeRoute();
+          return const HomeRoute();
         });
   }
 }

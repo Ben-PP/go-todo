@@ -12,6 +12,8 @@ class GtTextField extends StatefulWidget {
     this.isSecret = false,
     this.leading,
     this.trailing,
+    this.autovalidateMode = AutovalidateMode.disabled,
+    this.validator,
   });
   final TextEditingController controller;
   final ValueChanged<String>? onChanged;
@@ -22,7 +24,8 @@ class GtTextField extends StatefulWidget {
   final bool isSecret;
   final Widget? trailing;
   final Widget? leading;
-
+  final AutovalidateMode autovalidateMode;
+  final String? Function(String?)? validator;
   @override
   State<GtTextField> createState() => _GtTextFieldState();
 }
@@ -31,7 +34,10 @@ class _GtTextFieldState extends State<GtTextField> {
   var showText = false;
   @override
   Widget build(BuildContext context) {
-    return TextField(
+    return TextFormField(
+      onTapOutside: (event) => FocusScope.of(context).unfocus(),
+      autovalidateMode: widget.autovalidateMode,
+      validator: widget.validator,
       controller: widget.controller,
       decoration: InputDecoration(
         border: !widget.filled ? const OutlineInputBorder() : null,

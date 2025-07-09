@@ -1,54 +1,53 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 
-part of 'authentication_provider.dart';
+part of 'has_api_url.dart';
 
 // **************************************************************************
 // RiverpodGenerator
 // **************************************************************************
 
-@ProviderFor(Authentication)
-const authenticationProvider = AuthenticationProvider._();
+@ProviderFor(HasApiUrl)
+const hasApiUrlProvider = HasApiUrlProvider._();
 
-final class AuthenticationProvider
-    extends $NotifierProvider<Authentication, AuthState> {
-  const AuthenticationProvider._()
+final class HasApiUrlProvider extends $NotifierProvider<HasApiUrl, bool> {
+  const HasApiUrlProvider._()
       : super(
           from: null,
           argument: null,
           retry: null,
-          name: r'authenticationProvider',
+          name: r'hasApiUrlProvider',
           isAutoDispose: true,
           dependencies: null,
           $allTransitiveDependencies: null,
         );
 
   @override
-  String debugGetCreateSourceHash() => _$authenticationHash();
+  String debugGetCreateSourceHash() => _$hasApiUrlHash();
 
   @$internal
   @override
-  Authentication create() => Authentication();
+  HasApiUrl create() => HasApiUrl();
 
   /// {@macro riverpod.override_with_value}
-  Override overrideWithValue(AuthState value) {
+  Override overrideWithValue(bool value) {
     return $ProviderOverride(
       origin: this,
-      providerOverride: $SyncValueProvider<AuthState>(value),
+      providerOverride: $SyncValueProvider<bool>(value),
     );
   }
 }
 
-String _$authenticationHash() => r'c685f1351a349d7619db4103a41b90b83d650cd4';
+String _$hasApiUrlHash() => r'b8e3f36cf4eeecc278851c5649f31757bb931451';
 
-abstract class _$Authentication extends $Notifier<AuthState> {
-  AuthState build();
+abstract class _$HasApiUrl extends $Notifier<bool> {
+  bool build();
   @$mustCallSuper
   @override
   void runBuild() {
     final created = build();
-    final ref = this.ref as $Ref<AuthState, AuthState>;
+    final ref = this.ref as $Ref<bool, bool>;
     final element = ref.element as $ClassProviderElement<
-        AnyNotifier<AuthState, AuthState>, AuthState, Object?, Object?>;
+        AnyNotifier<bool, bool>, bool, Object?, Object?>;
     element.handleValue(ref, created);
   }
 }
