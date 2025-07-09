@@ -32,9 +32,18 @@ final themeData = ThemeData(
       minimumSize: const Size(100, 60),
     ),
   ),
+  snackBarTheme: SnackBarThemeData(
+    backgroundColor: Colors.grey[800],
+    showCloseIcon: true,
+    dismissDirection: DismissDirection.horizontal,
+    behavior: SnackBarBehavior.floating,
+    contentTextStyle: const TextStyle(fontSize: 20, color: Colors.white60),
+    closeIconColor: Colors.teal,
+  ),
   textTheme: const TextTheme(
     headlineMedium: TextStyle(fontSize: 36, fontWeight: FontWeight.bold),
     headlineSmall: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+    titleMedium: TextStyle(fontSize: 20),
     bodyMedium: TextStyle(fontSize: 18),
     labelLarge: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
     labelMedium: TextStyle(fontSize: 16),

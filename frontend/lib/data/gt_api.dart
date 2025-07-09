@@ -1,7 +1,10 @@
 import 'dart:convert';
+import 'dart:developer';
+import 'dart:io';
 
 import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart';
 import 'package:http/http.dart' as http;
+import 'package:logging/logging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class GtApi {
@@ -36,16 +39,21 @@ class GtApi {
         refreshJWT = null;
         accessJWT = null;
       } else {
-        await refresh();
+        if (baseUrl != null) {
+          //await refresh();
+        }
       }
     }
+    //prefs.remove('baseUrl');
+    //prefs.remove('refreshJWT');
   }
 
   /// Check that baseUrl is not null
-  _checkBaseUrl() {
+  bool _hasBaseUrl() {
     if (baseUrl == null) {
-      throw Exception('Base URL is not set');
+      return false;
     }
+    return true;
   }
 
   /// Set the base url for the applications backend calls
@@ -53,37 +61,117 @@ class GtApi {
     var fullUrl = url.endsWith('/')
         ? url.substring(0, url.length - 1) + defaultPath
         : url + defaultPath;
+    try {
+      var response = await http.get(Uri.parse('$fullUrl/status'));
+      if (response.statusCode != 200) {
+        throw Exception('Invalid API URL: $url');
+      }
 
-    var response = await http.get(Uri.parse('$fullUrl/status'));
-    if (response.statusCode != 200) {
-      throw Exception('Invalid API URL: $url');
+      baseUrl = fullUrl;
+      final prefs = SharedPreferencesAsync();
+      await prefs.setString('baseUrl', fullUrl);
+    } on http.ClientException catch (error) {
+      log('Failed to connect API.', error: error, level: Level.SEVERE.value);
+      if (error.message.contains('Connection refused')) {
+        throw GtApiException(
+          cause: 'Host refused connection.',
+          type: GtApiExceptionType.hostNotResponding,
+        );
+      }
+      throw GtApiException(
+        cause: error.toString(),
+        type: GtApiExceptionType.hostUnknown,
+      );
+    } catch (error) {
+      log('Failed to connect API.', error: error, level: Level.SEVERE.value);
+      throw GtApiException(
+        cause: error.toString(),
+        type: GtApiExceptionType.unknown,
+      );
     }
-
-    baseUrl = fullUrl;
-    final prefs = SharedPreferencesAsync();
-    await prefs.setString('baseUrl', fullUrl);
   }
 
   /// Refresh the tokens
   Future<void> refresh() async {
-    _checkBaseUrl();
-
-    var response = await http.post(
-      Uri.parse('$baseUrl/auth/refresh'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'refresh_token': refreshJWT}),
-    );
-
-    if (response.statusCode == 200) {
-      var data = jsonDecode(response.body);
-      accessJWT = data['access_token'];
-      refreshJWT = data['refresh_token'];
-
-      final prefs = SharedPreferencesAsync();
-      await prefs.setString('accessJWT', accessJWT!);
-      await prefs.setString('refreshJWT', refreshJWT!);
-    } else {
-      throw Exception('Failed to refresh tokens: ${response.body}');
+    if (!_hasBaseUrl()) {
+      final error = GtApiException(
+          cause: 'BaseUrl not set.', type: GtApiExceptionType.urlNull);
+      log('App has no baseUrl', level: Level.SEVERE.value, error: error);
+      throw error;
+    }
+    if (refreshJWT == null) {
+      final error = GtApiException(
+        cause: 'No refresh token saved',
+        type: GtApiExceptionType.refreshJWTNull,
+      );
+      log(
+        'App has no saved refresh JWT.',
+        error: error,
+        level: Level.SEVERE.value,
+      );
+    }
+    try {
+      var response = await http.post(
+        Uri.parse('$baseUrl/auth/refresh'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'refresh_token': refreshJWT}),
+      );
+      switch (response.statusCode) {
+        case 200:
+          var data = jsonDecode(response.body);
+          accessJWT = data['access_token'];
+          refreshJWT = data['refresh_token'];
+          final prefs = SharedPreferencesAsync();
+          await prefs.setString('accessJWT', accessJWT!);
+          await prefs.setString('refreshJWT', refreshJWT!);
+          log('Tokens refreshed', level: Level.INFO.value);
+          break;
+        case 400:
+          var error = GtApiException(
+            cause: 'Malformed request: ${response.body}',
+            type: GtApiExceptionType.malformedBody,
+          );
+          log(error.cause, error: error, level: Level.SEVERE.value);
+          throw error;
+        case 401:
+          final prefs = SharedPreferencesAsync();
+          await prefs.remove('accessJWT');
+          await prefs.remove('refreshJWT');
+          final error = GtApiException(
+            cause: 'Token was unauthorized for refresh.',
+            type: GtApiExceptionType.refreshJWTUnauthorized,
+          );
+          log(error.cause, error: error, level: Level.INFO.value);
+          throw error;
+        case 500:
+          final error = GtApiException(
+            cause: 'Internal server error: ${response.body}',
+            type: GtApiExceptionType.serverError,
+          );
+          log(error.cause, error: error, level: Level.SEVERE.value);
+          throw error;
+        default:
+          final error = GtApiException(
+            cause: 'Unknown error: ${response.body}',
+            type: GtApiExceptionType.unknownResponse,
+          );
+          log(error.cause, error: error, level: Level.SEVERE.value);
+          throw Exception('Failed to refresh tokens: ${response.body}');
+      }
+    } on http.ClientException catch (error) {
+      final gtError = GtApiException(
+        cause: 'Could not connect to $baseUrl',
+        type: GtApiExceptionType.hostNotResponding,
+      );
+      log(gtError.cause, error: error, level: Level.SEVERE.value);
+      throw gtError;
+    } catch (error) {
+      final gtError = GtApiException(
+        cause: 'Unknown error happened during JWT refresh',
+        type: GtApiExceptionType.unknown,
+      );
+      log(gtError.cause, error: error, level: Level.SEVERE.value);
+      throw gtError;
     }
   }
 
@@ -91,48 +179,173 @@ class GtApi {
   ///
   /// Uses [username] and [password] to get tokens form the API.
   Future<void> login(String username, String password) async {
-    _checkBaseUrl();
-    var response = await http.post(
-      Uri.parse('$baseUrl/auth/login'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'username': username,
-        'password': password,
-      }), //'{"username": "$username", "password": "$password"}',
-    );
+    if (!_hasBaseUrl()) {
+      final error = Exception('BaseUrl not set');
+      log('App has no baseUrl', level: Level.SEVERE.value, error: error);
+      throw error;
+    }
 
-    if (response.statusCode == 200) {
-      var data = jsonDecode(response.body);
+    try {
+      var response = await http.post(
+        Uri.parse('$baseUrl/auth/login'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'username': username,
+          'password': password,
+        }),
+      );
 
-      accessJWT = data['access_token'];
-      refreshJWT = data['refresh_token'];
+      if (response.statusCode == 200) {
+        var data = jsonDecode(response.body);
 
-      final prefs = SharedPreferencesAsync();
-      await prefs.setString('accessJWT', accessJWT!);
-      await prefs.setString('refreshJWT', refreshJWT!);
-    } else {
-      throw Exception('Failed to login: ${response.body}');
+        accessJWT = data['access_token'];
+        refreshJWT = data['refresh_token'];
+
+        final prefs = SharedPreferencesAsync();
+        await prefs.setString('accessJWT', accessJWT!);
+        await prefs.setString('refreshJWT', refreshJWT!);
+        return;
+      }
+
+      late final String cause;
+      late final GtApiExceptionType type;
+      switch (response.statusCode) {
+        case 400:
+          cause = 'Malformed request: ${response.body}';
+          type = GtApiExceptionType.malformedBody;
+          break;
+        case 401:
+          cause = 'Invalid credentials: ${response.body}';
+          type = GtApiExceptionType.invalidCredentials;
+          break;
+        case 500:
+          cause = 'Server error: ${response.body}';
+          type = GtApiExceptionType.serverError;
+          break;
+        default:
+          cause = 'Unknown error: ${response.body}';
+          type = GtApiExceptionType.unknownResponse;
+      }
+      final error = GtApiException(
+        cause: cause,
+        type: type,
+      );
+      log(error.cause, error: error, level: Level.SEVERE.value);
+      throw error;
+    } on GtApiException catch (_) {
+      rethrow;
+    } on http.ClientException catch (error) {
+      final gtError = GtApiException(
+        cause: 'Could not connect to $baseUrl',
+        type: GtApiExceptionType.hostNotResponding,
+      );
+      log(gtError.cause, error: error, level: Level.SEVERE.value);
+      throw gtError;
+    } catch (error) {
+      final gtError = GtApiException(
+        cause: 'Unknown error happened during login',
+        type: GtApiExceptionType.unknown,
+      );
+      log(gtError.cause, error: error, level: Level.SEVERE.value);
+      throw gtError;
     }
   }
 
   Future<void> logout() async {
-    _checkBaseUrl();
-
-    var response = await http.post(Uri.parse('$baseUrl/auth/logout'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $accessJWT'
-        },
-        body: jsonEncode({
-          'refresh_token': refreshJWT,
-        }));
-
-    if (response.statusCode != 204) {
-      throw Exception('Failed to logout');
+    if (!_hasBaseUrl()) {
+      final error = Exception('BaseUrl not set');
+      log('App has no baseUrl', level: Level.SEVERE.value, error: error);
+      throw error;
     }
 
-    var prefs = SharedPreferencesAsync();
-    await prefs.remove('accessJWT');
-    await prefs.remove('refreshJWT');
+    try {
+      var response = await http.post(Uri.parse('$baseUrl/auth/logout'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $accessJWT'
+          },
+          body: jsonEncode({
+            'refresh_token': refreshJWT,
+          }));
+
+      if (response.statusCode == 204) {
+        var prefs = SharedPreferencesAsync();
+        await prefs.remove('accessJWT');
+        await prefs.remove('refreshJWT');
+        return;
+      }
+
+      late final String cause;
+      late final GtApiExceptionType type;
+      switch (response.statusCode) {
+        case 400:
+          cause = 'Malformed request: ${response.body}';
+          type = GtApiExceptionType.malformedBody;
+          break;
+        case 401:
+          cause = 'Invalid credentials: ${response.body}';
+          type = GtApiExceptionType.invalidCredentials;
+          break;
+        case 403:
+          cause = 'Forbidden: ${response.body}';
+          type = GtApiExceptionType.forbidden;
+          break;
+        case 500:
+          cause = 'Server error: ${response.body}';
+          type = GtApiExceptionType.serverError;
+          break;
+        default:
+          cause = 'Unknown error: ${response.body}';
+          type = GtApiExceptionType.unknownResponse;
+          break;
+      }
+      final error = GtApiException(
+        cause: cause,
+        type: type,
+      );
+      log(error.cause, error: error, level: Level.SEVERE.value);
+      throw error;
+    } on GtApiException catch (_) {
+      rethrow;
+    } on SocketException catch (error) {
+      final gtError = GtApiException(
+        cause: 'Could not connect to $baseUrl',
+        type: GtApiExceptionType.hostNotResponding,
+      );
+      log(gtError.cause, error: error, level: Level.SEVERE.value);
+      throw gtError;
+    } catch (error) {
+      final gtError = GtApiException(
+        cause: 'Unknown error happened during logout',
+        type: GtApiExceptionType.unknown,
+      );
+      log(gtError.cause, error: error, level: Level.SEVERE.value);
+      throw gtError;
+    }
+  }
+}
+
+enum GtApiExceptionType {
+  unknown,
+  forbidden,
+  hostUnknown,
+  hostNotResponding,
+  invalidCredentials,
+  urlNull,
+  refreshJWTNull,
+  refreshJWTUnauthorized,
+  malformedBody,
+  serverError,
+  unknownResponse,
+}
+
+class GtApiException implements Exception {
+  String cause;
+  GtApiExceptionType type;
+  GtApiException({required this.cause, required this.type});
+
+  @override
+  String toString() {
+    return 'GtApiException ($type): $cause';
   }
 }
