@@ -35,6 +35,7 @@ class _GtDrawerState extends ConsumerState<GtDrawer> {
     var isError = false;
     try {
       await ref.read(authenticationProvider.notifier).logout();
+      snackMessage = 'Successfully logged out!';
     } on GtApiException catch (error) {
       isError = true;
       switch (error.type) {
