@@ -37,7 +37,6 @@ class _GtDrawerState extends ConsumerState<GtDrawer> {
       await ref.read(authenticationProvider.notifier).logout();
       snackMessage = 'Successfully logged out!';
     } on GtApiException catch (error) {
-      // TODO Use showErrorSnack instead of this
       isError = true;
       switch (error.type) {
         case GtApiExceptionType.malformedBody:
