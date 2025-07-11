@@ -33,8 +33,15 @@ class GtTextField extends StatefulWidget {
 }
 
 class _GtTextFieldState extends State<GtTextField> {
-  final focusNode = FocusNode();
+  final focusNode = FocusNode(skipTraversal: true);
   var showText = false;
+
+  @override
+  void dispose() {
+    super.dispose();
+    focusNode.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return TextFormField(
@@ -58,7 +65,7 @@ class _GtTextFieldState extends State<GtTextField> {
             ),
         suffixIcon: widget.isSecret
             ? IconButton(
-                focusNode: FocusNode(skipTraversal: true),
+                focusNode: focusNode,
                 onPressed: () => setState(() => showText = !showText),
                 icon: showText
                     ? const Icon(Icons.visibility_off)
