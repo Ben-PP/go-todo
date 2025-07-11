@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_todo/application/authentication_provider.dart';
 import 'package:go_todo/data/gt_api.dart';
+import 'package:go_todo/presentation/auth_view/register_route.dart';
+import 'package:go_todo/src/create_gt_route.dart';
 import 'package:go_todo/src/get_snack_bar.dart';
 import 'package:go_todo/widgets/gt_loading_button.dart';
 import 'package:go_todo/widgets/gt_small_width_container.dart';
@@ -48,7 +50,7 @@ class _LoginViewState extends ConsumerState<LoginView> {
         case GtApiExceptionType.malformedBody:
           snackMessage = 'Login requests body was malformed.';
           break;
-        case GtApiExceptionType.invalidCredentials:
+        case GtApiExceptionType.unauthorized:
           snackMessage = "Username/Password doesn't match.";
           break;
         case GtApiExceptionType.serverError:
@@ -83,7 +85,13 @@ class _LoginViewState extends ConsumerState<LoginView> {
     }
   }
 
-  // TODO Add registration view
+  @override
+  void dispose() {
+    super.dispose();
+    usernameController.dispose();
+    passwordController.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return GtSmallWidthContainer(
@@ -98,6 +106,7 @@ class _LoginViewState extends ConsumerState<LoginView> {
             padding: const EdgeInsets.symmetric(vertical: 10),
             child: GtTextField(
               controller: usernameController,
+              textInputAction: TextInputAction.next,
               filled: true,
               label: 'Username',
               hint: 'Paroni, Julma-Hurtta, Liisa...',
@@ -108,6 +117,7 @@ class _LoginViewState extends ConsumerState<LoginView> {
             padding: const EdgeInsets.symmetric(vertical: 10.0),
             child: GtTextField(
               controller: passwordController,
+              textInputAction: TextInputAction.done,
               filled: true,
               label: 'Password',
               isSecret: true,
@@ -123,6 +133,26 @@ class _LoginViewState extends ConsumerState<LoginView> {
                 onPressed: () async => await login(context),
                 text: 'Login',
               ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text("Don't have an account?"),
+                const SizedBox(
+                  width: 2,
+                ),
+                TextButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        createGtRoute(context, const RegisterRoute()),
+                      );
+                    },
+                    child: const Text('Register')),
+              ],
             ),
           ),
         ],
