@@ -23,6 +23,7 @@ showErrorSnack(BuildContext context, GtApiException error,
     case GtApiExceptionType.conflict:
       snackMessage = map?[GtApiExceptionType.conflict] ??
           'Conflict occurred. This usually means you are trying to create a resource that already exists.';
+      break;
     case GtApiExceptionType.urlNull:
       snackMessage =
           map?[GtApiExceptionType.urlNull] ?? 'Url has not been set.';
