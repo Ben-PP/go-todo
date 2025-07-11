@@ -42,7 +42,7 @@ class _GtDrawerState extends ConsumerState<GtDrawer> {
         case GtApiExceptionType.malformedBody:
           snackMessage = 'Logout requests body was malformed :D';
           break;
-        case GtApiExceptionType.invalidCredentials:
+        case GtApiExceptionType.unauthorized:
           snackMessage = 'Failed to logout with invalid credentials.';
           break;
         case GtApiExceptionType.forbidden:

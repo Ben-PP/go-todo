@@ -71,7 +71,7 @@ class _ApiUrlRouteState extends ConsumerState<ApiUrlRoute> {
           break;
         case GtApiExceptionType.malformedBody:
           snackMessage = 'Refresh requests body was malformed.';
-        case GtApiExceptionType.refreshJWTUnauthorized:
+        case GtApiExceptionType.unauthorized:
           snackMessage = gtError.cause;
         case GtApiExceptionType.unknown:
           snackMessage = 'Confusion of the highest order! Unknown error :(';

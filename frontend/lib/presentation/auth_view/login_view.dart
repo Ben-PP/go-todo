@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_todo/application/authentication_provider.dart';
 import 'package:go_todo/data/gt_api.dart';
+import 'package:go_todo/presentation/auth_view/register_route.dart';
+import 'package:go_todo/src/create_gt_route.dart';
 import 'package:go_todo/src/get_snack_bar.dart';
+import 'package:go_todo/src/show_error_snack.dart';
 import 'package:go_todo/widgets/gt_loading_button.dart';
 import 'package:go_todo/widgets/gt_small_width_container.dart';
 import 'package:go_todo/widgets/gt_text_field.dart';
@@ -38,52 +41,57 @@ class _LoginViewState extends ConsumerState<LoginView> {
     setState(() {
       isLoading = true;
     });
-    var snackMessage = '';
-    var isError = false;
     try {
       await ref.read(authenticationProvider.notifier).login(uname, passwd);
-      snackMessage = 'Successfully logged in as $uname';
-    } on GtApiException catch (error) {
-      switch (error.type) {
-        case GtApiExceptionType.malformedBody:
-          snackMessage = 'Login requests body was malformed.';
-          break;
-        case GtApiExceptionType.invalidCredentials:
-          snackMessage = "Username/Password doesn't match.";
-          break;
-        case GtApiExceptionType.serverError:
-          snackMessage =
-              'You broke the server (500) :(\nContact your personal support guy.';
-          break;
-        case GtApiExceptionType.unknownResponse:
-          snackMessage = 'Something mysterious was not handled correctly...';
-          break;
-        case GtApiExceptionType.hostNotResponding:
-          snackMessage = 'Your server is not talking to us.';
-          break;
-        default:
-          snackMessage = 'Hey! You forgot to handle an error case :D';
-          break;
-      }
-      isError = true;
-    } catch (error) {
-      snackMessage = 'This error was not handled at all. Fix the thrash...';
-      isError = true;
-    } finally {
-      setState(() {
-        isLoading = false;
-      });
       if (context.mounted) {
         ScaffoldMessenger.of(context).clearSnackBars();
         ScaffoldMessenger.of(context).showSnackBar(
           getSnackBar(
-              context: context, content: Text(snackMessage), isError: isError),
+            context: context,
+            content: Text('Successfully logged in as $uname'),
+          ),
         );
       }
+    } on GtApiException catch (error) {
+      if (context.mounted) {
+        showErrorSnack(context, error, map: {
+          GtApiExceptionType.malformedBody:
+              'Login requests body was malformed.',
+          GtApiExceptionType.unauthorized: "Username/Password doesn't match.",
+          GtApiExceptionType.serverError:
+              'You broke the server (500) :(\nContact your personal support guy.',
+          GtApiExceptionType.unknownResponse:
+              'Something mysterious was handled incorrectly...',
+          GtApiExceptionType.hostNotResponding:
+              'Your server is not talking to us.',
+        });
+      }
+    } catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).clearSnackBars();
+        ScaffoldMessenger.of(context).showSnackBar(
+          getSnackBar(
+            context: context,
+            content: const Text(
+                'This error was not handled at all. Fix the thrash...'),
+            isError: true,
+          ),
+        );
+      }
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
     }
   }
 
-  // TODO Add registration view
+  @override
+  void dispose() {
+    super.dispose();
+    usernameController.dispose();
+    passwordController.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return GtSmallWidthContainer(
@@ -98,6 +106,7 @@ class _LoginViewState extends ConsumerState<LoginView> {
             padding: const EdgeInsets.symmetric(vertical: 10),
             child: GtTextField(
               controller: usernameController,
+              textInputAction: TextInputAction.next,
               filled: true,
               label: 'Username',
               hint: 'Paroni, Julma-Hurtta, Liisa...',
@@ -108,6 +117,7 @@ class _LoginViewState extends ConsumerState<LoginView> {
             padding: const EdgeInsets.symmetric(vertical: 10.0),
             child: GtTextField(
               controller: passwordController,
+              textInputAction: TextInputAction.done,
               filled: true,
               label: 'Password',
               isSecret: true,
@@ -123,6 +133,26 @@ class _LoginViewState extends ConsumerState<LoginView> {
                 onPressed: () async => await login(context),
                 text: 'Login',
               ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text("Don't have an account?"),
+                const SizedBox(
+                  width: 2,
+                ),
+                TextButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        createGtRoute(context, const RegisterRoute()),
+                      );
+                    },
+                    child: const Text('Register')),
+              ],
             ),
           ),
         ],
