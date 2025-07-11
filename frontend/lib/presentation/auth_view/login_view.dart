@@ -5,6 +5,7 @@ import 'package:go_todo/data/gt_api.dart';
 import 'package:go_todo/presentation/auth_view/register_route.dart';
 import 'package:go_todo/src/create_gt_route.dart';
 import 'package:go_todo/src/get_snack_bar.dart';
+import 'package:go_todo/src/show_error_snack.dart';
 import 'package:go_todo/widgets/gt_loading_button.dart';
 import 'package:go_todo/widgets/gt_small_width_container.dart';
 import 'package:go_todo/widgets/gt_text_field.dart';
@@ -40,48 +41,47 @@ class _LoginViewState extends ConsumerState<LoginView> {
     setState(() {
       isLoading = true;
     });
-    var snackMessage = '';
-    var isError = false;
     try {
       await ref.read(authenticationProvider.notifier).login(uname, passwd);
-      snackMessage = 'Successfully logged in as $uname';
-    } on GtApiException catch (error) {
-      switch (error.type) {
-        case GtApiExceptionType.malformedBody:
-          snackMessage = 'Login requests body was malformed.';
-          break;
-        case GtApiExceptionType.unauthorized:
-          snackMessage = "Username/Password doesn't match.";
-          break;
-        case GtApiExceptionType.serverError:
-          snackMessage =
-              'You broke the server (500) :(\nContact your personal support guy.';
-          break;
-        case GtApiExceptionType.unknownResponse:
-          snackMessage = 'Something mysterious was not handled correctly...';
-          break;
-        case GtApiExceptionType.hostNotResponding:
-          snackMessage = 'Your server is not talking to us.';
-          break;
-        default:
-          snackMessage = 'Hey! You forgot to handle an error case :D';
-          break;
-      }
-      isError = true;
-    } catch (error) {
-      snackMessage = 'This error was not handled at all. Fix the thrash...';
-      isError = true;
-    } finally {
-      setState(() {
-        isLoading = false;
-      });
       if (context.mounted) {
         ScaffoldMessenger.of(context).clearSnackBars();
         ScaffoldMessenger.of(context).showSnackBar(
           getSnackBar(
-              context: context, content: Text(snackMessage), isError: isError),
+            context: context,
+            content: Text('Successfully logged in as $uname'),
+          ),
         );
       }
+    } on GtApiException catch (error) {
+      if (context.mounted) {
+        showErrorSnack(context, error, map: {
+          GtApiExceptionType.malformedBody:
+              'Login requests body was malformed.',
+          GtApiExceptionType.unauthorized: "Username/Password doesn't match.",
+          GtApiExceptionType.serverError:
+              'You broke the server (500) :(\nContact your personal support guy.',
+          GtApiExceptionType.unknownResponse:
+              'Something mysterious was handled incorrectly...',
+          GtApiExceptionType.hostNotResponding:
+              'Your server is not talking to us.',
+        });
+      }
+    } catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).clearSnackBars();
+        ScaffoldMessenger.of(context).showSnackBar(
+          getSnackBar(
+            context: context,
+            content: const Text(
+                'This error was not handled at all. Fix the thrash...'),
+            isError: true,
+          ),
+        );
+      }
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
     }
   }
 

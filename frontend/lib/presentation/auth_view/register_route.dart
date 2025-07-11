@@ -56,7 +56,7 @@ class _RegisterRouteState extends State<RegisterRoute> {
       }
     } on GtApiException catch (error) {
       if (context.mounted) {
-        showErrorSnack(context, error, {
+        showErrorSnack(context, error, map: {
           GtApiExceptionType.conflict:
               'User with username $username already exists.',
         });

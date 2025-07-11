@@ -6,7 +6,7 @@ import 'package:go_todo/src/get_snack_bar.dart';
 import 'package:logging/logging.dart';
 
 showErrorSnack(BuildContext context, GtApiException error,
-    Map<GtApiExceptionType, String>? map) {
+    {Map<GtApiExceptionType, String>? map}) {
   var snackMessage = '';
   switch (error.type) {
     case GtApiExceptionType.forbidden:
