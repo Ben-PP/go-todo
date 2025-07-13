@@ -108,6 +108,46 @@ func (q *Queries) GetTodoByIdWithListId(ctx context.Context, arg GetTodoByIdWith
 	return i, err
 }
 
+const getTodosAccessibleByUserId = `-- name: GetTodosAccessibleByUserId :many
+SELECT t.id, t.parent_id, t.list_id, t.user_id, t.title, t.description, t.completed, t.created_at, t.updated_at, t.complete_before, t.completed_at FROM todos t
+JOIN lists l ON t.list_id = l.id
+WHERE l.user_id = $1 OR l.id IN (
+    SELECT ls.list_id FROM list_shares ls WHERE ls.user_id = $1
+)
+`
+
+func (q *Queries) GetTodosAccessibleByUserId(ctx context.Context, userID string) ([]Todo, error) {
+	rows, err := q.db.Query(ctx, getTodosAccessibleByUserId, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Todo{}
+	for rows.Next() {
+		var i Todo
+		if err := rows.Scan(
+			&i.ID,
+			&i.ParentID,
+			&i.ListID,
+			&i.UserID,
+			&i.Title,
+			&i.Description,
+			&i.Completed,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.CompleteBefore,
+			&i.CompletedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const getTodosByList = `-- name: GetTodosByList :many
 SELECT id, parent_id, list_id, user_id, title, description, completed, created_at, updated_at, complete_before, completed_at FROM todos
 WHERE list_id = $1
@@ -115,6 +155,43 @@ WHERE list_id = $1
 
 func (q *Queries) GetTodosByList(ctx context.Context, listID string) ([]Todo, error) {
 	rows, err := q.db.Query(ctx, getTodosByList, listID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Todo{}
+	for rows.Next() {
+		var i Todo
+		if err := rows.Scan(
+			&i.ID,
+			&i.ParentID,
+			&i.ListID,
+			&i.UserID,
+			&i.Title,
+			&i.Description,
+			&i.Completed,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.CompleteBefore,
+			&i.CompletedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getTodosByListIds = `-- name: GetTodosByListIds :many
+SELECT id, parent_id, list_id, user_id, title, description, completed, created_at, updated_at, complete_before, completed_at FROM todos
+WHERE list_id = ANY($1::text[])
+`
+
+func (q *Queries) GetTodosByListIds(ctx context.Context, dollar_1 []string) ([]Todo, error) {
+	rows, err := q.db.Query(ctx, getTodosByListIds, dollar_1)
 	if err != nil {
 		return nil, err
 	}

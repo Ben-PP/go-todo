@@ -72,6 +72,16 @@ func (controller *TodoController) ReadListWithTodos(ctx *gin.Context) {
 		return
 	}
 
+	response := map[string]any{
+		"id":          list.ID,
+		"user_id":     list.UserID,
+		"title":       list.Title,
+		"description": list.Description,
+		"created_at":  list.CreatedAt,
+		"updated_at":  list.UpdatedAt,
+		"todos":       todos,
+	}
+
 	logging.LogObjectEvent(
 		ctx.FullPath(),
 		ctx.ClientIP(),
@@ -81,5 +91,5 @@ func (controller *TodoController) ReadListWithTodos(ctx *gin.Context) {
 		nil,
 		logging.ObjectEventSubList,
 	)
-	ctx.JSON(200, gin.H{"status": "ok", "list": list, "todos": todos})
+	ctx.JSON(200, gin.H{"status": "ok", "list": response})
 }
