@@ -89,6 +89,36 @@ func (controller *TodoController) ReadLists(ctx *gin.Context) {
 		)
 		return
 	}
+	listIds := make([]string, 0, len(*lists))
+	for _, list := range *lists {
+		listIds = append(listIds, list.ID)
+	}
+
+	todos, err := controller.db.GetTodosByListIds(ctx, listIds)
+	if err != nil {
+		_, file, line, _ := runtime.Caller(0)
+		mycontext.CtxAddGtInternalError("failed to get todos", file, line, err, ctx)
+		return
+	}
+
+	todoMap := make(map[string][]db.Todo)
+	for _, todo := range todos {
+		todoMap[todo.ListID] = append(todoMap[todo.ListID], todo)
+	}
+
+	response := make([]map[string]any, 0, len(*lists))
+	for _, list := range *lists {
+		item := map[string]any{
+			"id":          list.ID,
+			"user_id":     list.UserID,
+			"title":       list.Title,
+			"description": list.Description,
+			"created_at":  list.CreatedAt,
+			"updated_at":  list.UpdatedAt,
+			"todos":       todoMap[list.ID],
+		}
+		response = append(response, item)
+	}
 
 	logging.LogObjectEvent(
 		ctx.FullPath(),
@@ -99,5 +129,5 @@ func (controller *TodoController) ReadLists(ctx *gin.Context) {
 		nil,
 		logging.ObjectEventSubList,
 	)
-	ctx.JSON(200, gin.H{"status": "ok", "lists": lists})
+	ctx.JSON(200, gin.H{"status": "ok", "lists": response})
 }
