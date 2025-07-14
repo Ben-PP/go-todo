@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 
-Route createGtRoute(BuildContext context, Widget page) {
+Route createGtRoute(
+  BuildContext context,
+  Widget page, {
+  emergeVertically = false,
+}) {
   const animationDuration = 300;
 
   return PageRouteBuilder(
@@ -8,7 +12,8 @@ Route createGtRoute(BuildContext context, Widget page) {
     transitionDuration: const Duration(milliseconds: animationDuration),
     reverseTransitionDuration: const Duration(milliseconds: animationDuration),
     transitionsBuilder: (context, animation, secondaryAnimation, child) {
-      const begin = Offset(-1.0, 0.0);
+      final begin =
+          emergeVertically ? const Offset(0.0, 1.0) : const Offset(-1.0, 0.0);
       const end = Offset.zero;
       const curve = Curves.easeInOutCubic;
 

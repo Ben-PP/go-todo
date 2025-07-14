@@ -45,6 +45,7 @@ final themeData = ThemeData(
     headlineSmall: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
     titleMedium: TextStyle(fontSize: 20),
     bodyMedium: TextStyle(fontSize: 18),
+    bodySmall: TextStyle(fontSize: 14, color: Colors.white70),
     labelLarge: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
     labelMedium: TextStyle(fontSize: 16),
   ),

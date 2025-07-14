@@ -7,6 +7,8 @@ import 'package:http/http.dart' as http;
 import 'package:logging/logging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../domain/todo_list.dart';
+
 class GtApi {
   static final GtApi _instance = GtApi._internal();
   static const String defaultPath = '/api/v1';
@@ -353,6 +355,51 @@ class GtApi {
         type: GtApiExceptionType.unknown,
       );
       log(gtError.cause, error: error, level: Level.SEVERE.value);
+      throw gtError;
+    }
+  }
+
+  Future<List<TodoList>> getLists() async {
+    if (!_hasBaseUrl()) {
+      final error = Exception('BaseUrl not set');
+      log('App has no baseUrl', level: Level.SEVERE.value, error: error);
+      throw error;
+    }
+
+    try {
+      var response = await http.get(
+        Uri.parse('$baseUrl/list/'),
+        headers: {'Authorization': 'Bearer $accessJWT'},
+      );
+
+      if (response.statusCode != 200) {
+        // TODO Check if we need to handle errors here.
+        _handleErrorStatus(response, map: {});
+      }
+
+      var data = jsonDecode(response.body);
+      var todoLists = (data['lists'] as List<dynamic>)
+          .map((list) => TodoList.fromJson(list as Map<String, dynamic>))
+          .toList();
+      return todoLists;
+    } on GtApiException catch (_) {
+      rethrow;
+    } on SocketException catch (error) {
+      final gtError = GtApiException(
+        cause: 'Could not connect to $baseUrl',
+        type: GtApiExceptionType.hostNotResponding,
+      );
+      log(gtError.cause, error: error, level: Level.SEVERE.value);
+      throw gtError;
+    } catch (error) {
+      final gtError = GtApiException(
+        cause: 'Unknown error happened while getting lists.',
+        type: GtApiExceptionType.unknown,
+      );
+      log(gtError.cause,
+          error: error,
+          level: Level.SEVERE.value,
+          stackTrace: StackTrace.current);
       throw gtError;
     }
   }
