@@ -23,20 +23,17 @@ class _TodoListsViewState extends ConsumerState<TodoListsView> {
   var isRefreshing = false;
   String? selectedListId;
 
-  // TODO Continue.
-  // Highlight the selected list
-  // Improve the todo list panel to be more separated from the todo view
-
   @override
   Widget build(BuildContext context) {
     final AsyncValue<List<TodoList>> todoLists = ref.watch(todoListsProvider);
     final colorScheme = Theme.of(context).colorScheme;
-    final isDesktop = MediaQuery.sizeOf(context).width > ScreenSize.small.value;
+    final isDesktop = MediaQuery.sizeOf(context).width > ScreenSize.large.value;
     Widget content = const GtLoadingPage();
-    // TODO Implement
+
     if (isRefreshing || todoLists.isRefreshing || todoLists is AsyncLoading) {
       return content;
     }
+
     switch (todoLists) {
       case AsyncLoading():
         content = const GtLoadingPage();
@@ -49,14 +46,18 @@ class _TodoListsViewState extends ConsumerState<TodoListsView> {
         }
         content = Center(
           child: SizedBox(
-            height: double.infinity,
+            width: MediaQuery.sizeOf(context).width > ScreenSize.large.value
+                ? ScreenSize.large.value.toDouble()
+                : double.infinity,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
+                Flexible(
+                  flex: 4,
                   child: GtFadingScrollView(
                     title: isDesktop ? 'Todo Lists' : null,
+                    subtitle: isDesktop ? 'Select a list to view' : null,
                     children: [
                       ...value.map((list) => TodoListCard(
                             list: list,
@@ -117,7 +118,14 @@ class _TodoListsViewState extends ConsumerState<TodoListsView> {
                   ),
                 ),
                 if (isDesktop)
-                  Expanded(
+                  VerticalDivider(
+                    width: 16,
+                    thickness: 2,
+                    color: Theme.of(context).colorScheme.primaryContainer,
+                  ),
+                if (isDesktop)
+                  Flexible(
+                    flex: 8,
                     child: TodoView(
                       todoList: value.firstWhere((l) {
                         if (selectedListId != null) {

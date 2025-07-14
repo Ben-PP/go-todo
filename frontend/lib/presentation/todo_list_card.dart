@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_todo/widgets/gt_card.dart';
 import '../domain/todo_list.dart';
 
 class TodoListCard extends StatefulWidget {
@@ -21,37 +22,15 @@ class _TodoListCardState extends State<TodoListCard> {
         widget.list.todos.where((todo) => todo.isCompleted).length;
     final totalCount = widget.list.todos.length;
     final textTheme = Theme.of(context).textTheme;
-    final colorScheme = Theme.of(context).colorScheme;
     return SizedBox(
-      child: Card(
-        clipBehavior: Clip.antiAlias,
-        color: colorScheme.primaryContainer,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: widget.isSelected
-              ? BorderSide(color: colorScheme.secondary, width: 2)
-              : BorderSide.none,
-        ),
-        child: ListTile(
-          onLongPress: () {
-            // TODO Open edit options
-            // Delete or pin
-          },
-          onTap: widget.onTap,
-          hoverColor: colorScheme.secondary.withAlpha(50),
-          splashColor: colorScheme.secondary,
-          title: Text(
-            widget.list.title,
-            style: textTheme.labelLarge,
-          ),
-          subtitle: Text(
-            widget.list.description ?? '',
-            style: textTheme.bodySmall,
-          ),
-          trailing: Text(
-            '$doneCount/$totalCount',
-            style: textTheme.labelLarge,
-          ),
+      child: GtCard(
+        title: widget.list.title,
+        subtitle: widget.list.description,
+        isSelected: widget.isSelected,
+        onTap: widget.onTap,
+        trailing: Text(
+          '$doneCount/$totalCount',
+          style: textTheme.labelLarge,
         ),
       ),
     );

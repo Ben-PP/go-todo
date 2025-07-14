@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../domain/todo_list.dart';
-import '../presentation/todo_card.dart';
+import '../widgets/gt_card.dart';
 import '../widgets/gt_fading_scroll_view.dart';
 
 class TodoView extends StatelessWidget {
@@ -13,7 +13,51 @@ class TodoView extends StatelessWidget {
       width: double.infinity,
       child: GtFadingScrollView(
         title: todoList.title,
-        children: [...todoList.todos.map((todo) => TodoCard(todo: todo))],
+        subtitle: todoList.description,
+        actions: [
+          MenuAnchor(
+            builder: (context, controller, child) {
+              return IconButton(
+                  onPressed: () {
+                    if (controller.isOpen) {
+                      controller.close();
+                    } else {
+                      controller.open();
+                    }
+                  },
+                  icon: const Icon(Icons.more_vert));
+            },
+            menuChildren: [
+              MenuItemButton(
+                onPressed: () {
+                  // Handle edit action
+                },
+                child: const Text('Edit'),
+              ),
+              MenuItemButton(
+                onPressed: () {
+                  // Handle delete action
+                },
+                child: const Text('Delete'),
+              ),
+            ],
+          ),
+        ],
+        children: [
+          ...todoList.todos.map((todo) => GtCard(
+                title: todo.title,
+                subtitle: todo.description,
+                isSelected: false,
+                trailing: IconButton(
+                  onPressed: () {},
+                  icon: Icon(
+                    todo.isCompleted
+                        ? Icons.check_box_outlined
+                        : Icons.check_box_outline_blank,
+                  ),
+                ),
+              ))
+        ],
       ),
     );
   }
