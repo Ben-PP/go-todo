@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_todo/presentation/create_list_route.dart';
 import 'package:go_todo/widgets/gt_fading_scroll_view.dart';
 
 import '../application/todo_list.dart';
-import '../domain/todo_list.dart';
+import '../domain/todo_list.dart' as todo_list_domain;
 import '../globals.dart';
 import '../presentation/todo_list_card.dart';
 import '../presentation/todo_list_route.dart';
@@ -25,7 +26,8 @@ class _TodoListsViewState extends ConsumerState<TodoListsView> {
 
   @override
   Widget build(BuildContext context) {
-    final AsyncValue<List<TodoList>> todoLists = ref.watch(todoListsProvider);
+    final AsyncValue<List<todo_list_domain.TodoList>> todoLists =
+        ref.watch(todoListProvider);
     final colorScheme = Theme.of(context).colorScheme;
     final isDesktop = MediaQuery.sizeOf(context).width > ScreenSize.large.value;
     Widget content = const GtLoadingPage();
@@ -91,7 +93,11 @@ class _TodoListsViewState extends ConsumerState<TodoListsView> {
                             hoverColor: colorScheme.secondary.withAlpha(50),
                             splashColor: colorScheme.secondary,
                             onTap: () {
-                              // TODO Open add new list dialog (or route)
+                              Navigator.of(context).push(createGtRoute(
+                                context,
+                                const CreateListRoute(),
+                                emergeVertically: true,
+                              ));
                             },
                             child: Padding(
                               padding: const EdgeInsets.all(16.0),
@@ -156,7 +162,7 @@ class _TodoListsViewState extends ConsumerState<TodoListsView> {
               GtLoadingButton(
                   text: 'Try Again',
                   onPressed: () {
-                    var _ = ref.refresh(todoListsProvider);
+                    var _ = ref.refresh(todoListProvider);
                   }),
             ],
           ),

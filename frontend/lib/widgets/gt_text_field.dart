@@ -15,6 +15,7 @@ class GtTextField extends StatefulWidget {
     this.autovalidateMode = AutovalidateMode.disabled,
     this.validator,
     this.textInputAction,
+    this.maxLength,
   });
   final TextEditingController controller;
   final ValueChanged<String>? onChanged;
@@ -28,6 +29,8 @@ class GtTextField extends StatefulWidget {
   final AutovalidateMode autovalidateMode;
   final String? Function(String?)? validator;
   final TextInputAction? textInputAction;
+  final int? maxLength;
+
   @override
   State<GtTextField> createState() => _GtTextFieldState();
 }
@@ -45,6 +48,7 @@ class _GtTextFieldState extends State<GtTextField> {
   @override
   Widget build(BuildContext context) {
     return TextFormField(
+      maxLength: widget.maxLength,
       onTapOutside: (event) => FocusScope.of(context).unfocus(),
       autovalidateMode: widget.autovalidateMode,
       validator: widget.validator,

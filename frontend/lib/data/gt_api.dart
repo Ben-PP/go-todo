@@ -118,6 +118,33 @@ class GtApi {
     }
   }
 
+  /// Handles unknown errors by logging them and throwing a GtApiException.
+  _handleUnknownError(error) {
+    final gtError = GtApiException(
+      cause: 'Unknown error happened while creating list.',
+      type: GtApiExceptionType.unknown,
+    );
+    log(gtError.cause,
+        error: error,
+        level: Level.SEVERE.value,
+        stackTrace: StackTrace.current);
+    return Future.error(gtError);
+  }
+
+  _handleSocketException(SocketException error) {
+    final gtError = GtApiException(
+      cause: 'Could not connect to $baseUrl',
+      type: GtApiExceptionType.hostNotResponding,
+    );
+    log(
+      gtError.cause,
+      error: error,
+      level: Level.SEVERE.value,
+      stackTrace: StackTrace.current,
+    );
+    return Future.error(gtError);
+  }
+
   /// Set the base url for the applications backend calls
   Future<void> setBaseUrl(String url) async {
     var fullUrl = url.endsWith('/')
@@ -373,7 +400,6 @@ class GtApi {
       );
 
       if (response.statusCode != 200) {
-        // TODO Check if we need to handle errors here.
         _handleErrorStatus(response, map: {});
       }
 
@@ -401,6 +427,45 @@ class GtApi {
           level: Level.SEVERE.value,
           stackTrace: StackTrace.current);
       throw gtError;
+    }
+  }
+
+  Future<TodoList> createList(
+      {required String title, String? description}) async {
+    if (!_hasBaseUrl()) {
+      final error = Exception('BaseUrl not set');
+      log('App has no baseUrl', level: Level.SEVERE.value, error: error);
+      throw error;
+    }
+    Map<String, String> reqBody = {'title': title};
+    if (description != null) reqBody['description'] = description;
+
+    try {
+      var response = await http.post(
+        Uri.parse('$baseUrl/list/'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $accessJWT'
+        },
+        body: jsonEncode(reqBody),
+      );
+
+      // 201 if list was created
+      // 400 if title is empty, too long or descritpion is too long
+      // 401 if accessJWT is invalid
+      // 500 for multiple reasons
+      if (response.statusCode != 201) {
+        _handleErrorStatus(response, map: {});
+      }
+
+      var data = jsonDecode(response.body);
+      return TodoList.fromJson(data['list'] as Map<String, dynamic>);
+    } on GtApiException catch (error) {
+      return Future.error(error);
+    } on SocketException catch (error) {
+      return _handleSocketException(error);
+    } catch (error) {
+      return _handleUnknownError(error);
     }
   }
 }
