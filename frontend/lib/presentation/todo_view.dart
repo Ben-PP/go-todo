@@ -46,57 +46,59 @@ class TodoView extends ConsumerWidget {
               // Delete action
               MenuItemButton(
                 onPressed: () async {
-                  await showDialog(
-                    context: context,
-                    builder: (context) {
-                      return AlertDialog(
-                        title: const Text('Delete List'),
-                        content: const Text(
-                            'Are you sure you want to delete this list?'),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.of(context).pop(),
-                            child: const Text('Cancel'),
-                          ),
-                          TextButton(
-                            onPressed: () async {
-                              try {
-                                await ref
-                                    .read(todoListProvider.notifier)
-                                    .deleteList(todoList.id);
-                                if (context.mounted) {
-                                  final snackBar = getSnackBar(
-                                    context: context,
-                                    content: const Text('List deleted.'),
-                                  );
-                                  ScaffoldMessenger.of(context)
-                                      .clearSnackBars();
-                                  ScaffoldMessenger.of(context)
-                                      .showSnackBar(snackBar);
-                                  Navigator.of(context).pop();
-                                }
-                              } on GtApiException catch (_) {
-                                if (context.mounted) {
-                                  final snackBar = getSnackBar(
-                                    context: context,
-                                    content:
-                                        const Text('Failed to delete list'),
-                                    isError: true,
-                                  );
-                                  ScaffoldMessenger.of(context)
-                                      .clearSnackBars();
-                                  ScaffoldMessenger.of(context)
-                                      .showSnackBar(snackBar);
-                                }
-                              }
-                            },
-                            child: const Text('Delete'),
-                          ),
-                        ],
-                      );
-                    },
-                  );
-                  afterDelete();
+                  bool success = await showDialog(
+                        context: context,
+                        builder: (context) {
+                          return AlertDialog(
+                            title: const Text('Delete List'),
+                            content: const Text(
+                                'Are you sure you want to delete this list?'),
+                            actions: [
+                              TextButton(
+                                onPressed: () =>
+                                    Navigator.of(context).pop(false),
+                                child: const Text('Cancel'),
+                              ),
+                              TextButton(
+                                onPressed: () async {
+                                  try {
+                                    await ref
+                                        .read(todoListProvider.notifier)
+                                        .deleteList(todoList.id);
+                                    if (context.mounted) {
+                                      final snackBar = getSnackBar(
+                                        context: context,
+                                        content: const Text('List deleted.'),
+                                      );
+                                      ScaffoldMessenger.of(context)
+                                          .clearSnackBars();
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(snackBar);
+                                      Navigator.of(context).pop(true);
+                                    }
+                                  } on GtApiException catch (_) {
+                                    if (context.mounted) {
+                                      final snackBar = getSnackBar(
+                                        context: context,
+                                        content:
+                                            const Text('Failed to delete list'),
+                                        isError: true,
+                                      );
+                                      ScaffoldMessenger.of(context)
+                                          .clearSnackBars();
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(snackBar);
+                                    }
+                                  }
+                                },
+                                child: const Text('Delete'),
+                              ),
+                            ],
+                          );
+                        },
+                      ) ??
+                      false;
+                  if (success) afterDelete();
                 },
                 child: const Text('Delete'),
               ),
