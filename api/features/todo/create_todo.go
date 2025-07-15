@@ -35,12 +35,12 @@ func (controller *TodoController) CreateTodo(ctx *gin.Context) {
 	}
 	listID := ctx.Param("listID")
 
-	if ok := validate.LengthTodoTitle(payload.Title); !ok {
+	if ok := validate.LengthTitle(payload.Title); !ok {
 		ctx.Error(gterrors.NewGtValueError(payload.Title, "title too long"))
 		return
 	}
 	if payload.Description != nil {
-		if ok := validate.LengthTodoDescription(*payload.Description); !ok {
+		if ok := validate.LengthDescription(*payload.Description); !ok {
 			ctx.Error(gterrors.NewGtValueError(*payload.Description, "description too long"))
 			return
 		}
@@ -99,7 +99,7 @@ func (controller *TodoController) CreateTodo(ctx *gin.Context) {
 		ListID:         listID,
 		UserID:         reqUser.ID,
 		Title:          payload.Title,
-		Description:    pgtype.Text{String: description, Valid: true},
+		Description:    pgtype.Text{String: description, Valid: payload.Description != nil},
 		ParentID:       pgtype.Text{String: parentID, Valid: payload.ParentID != nil},
 		CompleteBefore: pgtype.Timestamp{Time: completeBefore, Valid: payload.CompleteBefore != nil},
 	}

@@ -108,7 +108,7 @@ func LogObjectEvent(
 				curKey,
 				slog.String("id", sc.ID),
 				slog.String("title", sc.Title),
-				slog.String("description", sc.Description),
+				slog.String("description", sc.Description.String),
 			)
 			groupCurrent = &gCur
 			if subOld != nil {
@@ -117,7 +117,7 @@ func LogObjectEvent(
 					oldKey,
 					slog.String("id", so.ID),
 					slog.String("title", so.Title),
-					slog.String("description", so.Description),
+					slog.String("description", so.Description.String),
 				)
 				groupOld = &gOld
 			}

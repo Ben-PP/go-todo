@@ -21,7 +21,7 @@ type List struct {
 	ID          string           `json:"id"`
 	UserID      string           `json:"user_id"`
 	Title       string           `json:"title"`
-	Description string           `json:"description"`
+	Description pgtype.Text      `json:"description"`
 	CreatedAt   pgtype.Timestamp `json:"created_at"`
 	UpdatedAt   pgtype.Timestamp `json:"updated_at"`
 }
