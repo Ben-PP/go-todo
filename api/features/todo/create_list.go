@@ -33,7 +33,7 @@ func (controller *TodoController) CreateList(ctx *gin.Context) {
 	}
 
 	if ok := validate.LengthTitle(payload.Title); !ok {
-		ctx.Error(gterrors.NewGtValueError(*payload.Description, "description too long"))
+		ctx.Error(gterrors.NewGtValueError(payload.Title, "title too long"))
 		return
 	}
 
