@@ -3,14 +3,15 @@ package user
 import (
 	"errors"
 	"fmt"
+	"net/http"
+	"runtime"
+
 	db "go-todo/db/sqlc"
 	"go-todo/gterrors"
 	"go-todo/logging"
 	"go-todo/schemas"
 	"go-todo/util/mycontext"
 	"go-todo/util/validate"
-	"net/http"
-	"runtime"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5"

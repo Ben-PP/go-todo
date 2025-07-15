@@ -14,6 +14,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 func (controller *TodoController) UpdateList(ctx *gin.Context) {
@@ -63,24 +64,24 @@ func (controller *TodoController) UpdateList(ctx *gin.Context) {
 	}
 
 	title := oldList.Title
-	description := oldList.Description
+	description := oldList.Description.String
 	if payload.Title != nil {
 		title = *payload.Title
 	}
 	if payload.Description != nil {
 		description = *payload.Description
 	}
-	if !validate.LengthListTitle(title) {
+	if !validate.LengthTitle(title) {
 		ctx.Error(gterrors.NewGtValueError(title, "title too long"))
 		return
-	} else if !validate.LengthListDescription(description) {
+	} else if !validate.LengthDescription(description) {
 		ctx.Error(gterrors.NewGtValueError(description, "description too long"))
 		return
 	}
 
 	args := &db.UpdateListParams{
 		Title:       title,
-		Description: description,
+		Description: pgtype.Text{String: description, Valid: payload.Description != nil},
 		ID:          listID,
 	}
 

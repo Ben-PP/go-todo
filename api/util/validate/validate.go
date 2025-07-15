@@ -10,20 +10,12 @@ func stringLength(str string, length int) bool {
 	return len(str) <= length
 }
 
-func LengthListDescription(txt string) bool {
-	return stringLength(txt, 100)
+func LengthDescription(txt string) bool {
+	return stringLength(txt, 150)
 }
 
-func LengthListTitle(txt string) bool {
-	return stringLength(txt, 50)
-}
-
-func LengthTodoTitle(txt string) bool {
-	return stringLength(txt, 50)
-}
-
-func LengthTodoDescription(txt string) bool {
-	return stringLength(txt, 200)
+func LengthTitle(txt string) bool {
+	return stringLength(txt, 40)
 }
 
 func Password(password string) (bool, error) {

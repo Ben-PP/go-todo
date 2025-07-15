@@ -3,20 +3,24 @@ package todo
 import (
 	"errors"
 	"fmt"
+	"runtime"
+
 	db "go-todo/db/sqlc"
 	"go-todo/gterrors"
 	"go-todo/logging"
 	"go-todo/schemas"
 	"go-todo/util/mycontext"
-	"runtime"
+	"go-todo/util/validate"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 func (controller *TodoController) CreateList(ctx *gin.Context) {
 	var payload *schemas.CreateList
+	description := ""
 	if ok := mycontext.ShouldBindBodyWithJSON(&payload, ctx); !ok {
 		return
 	}
@@ -26,6 +30,19 @@ func (controller *TodoController) CreateList(ctx *gin.Context) {
 		_, file, line, _ := runtime.Caller(0)
 		mycontext.CtxAddGtInternalError("failed to get claims from jwt", file, line, err, ctx)
 		return
+	}
+
+	if ok := validate.LengthTitle(payload.Title); !ok {
+		ctx.Error(gterrors.NewGtValueError(payload.Title, "title too long"))
+		return
+	}
+
+	if payload.Description != nil {
+		if ok := validate.LengthDescription(*payload.Description); !ok {
+			ctx.Error(gterrors.NewGtValueError(*payload.Description, "description too long"))
+			return
+		}
+		description = *payload.Description
 	}
 
 	reqUser, err := controller.db.GetUserById(ctx, tokenUserId)
@@ -50,7 +67,7 @@ func (controller *TodoController) CreateList(ctx *gin.Context) {
 		ID:          uuid.New().String(),
 		UserID:      reqUser.ID,
 		Title:       payload.Title,
-		Description: payload.Description,
+		Description: pgtype.Text{String: description, Valid: payload.Description != nil},
 	}
 
 	list, err := controller.db.CreateList(ctx, *args)

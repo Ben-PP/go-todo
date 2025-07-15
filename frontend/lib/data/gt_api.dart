@@ -7,6 +7,8 @@ import 'package:http/http.dart' as http;
 import 'package:logging/logging.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../domain/todo_list.dart';
+
 class GtApi {
   static final GtApi _instance = GtApi._internal();
   static const String defaultPath = '/api/v1';
@@ -114,6 +116,33 @@ class GtApi {
         logError(error);
         throw error;
     }
+  }
+
+  /// Handles unknown errors by logging them and throwing a GtApiException.
+  _handleUnknownError(error) {
+    final gtError = GtApiException(
+      cause: 'Unknown error happened while creating list.',
+      type: GtApiExceptionType.unknown,
+    );
+    log(gtError.cause,
+        error: error,
+        level: Level.SEVERE.value,
+        stackTrace: StackTrace.current);
+    return Future.error(gtError);
+  }
+
+  _handleSocketException(SocketException error) {
+    final gtError = GtApiException(
+      cause: 'Could not connect to $baseUrl',
+      type: GtApiExceptionType.hostNotResponding,
+    );
+    log(
+      gtError.cause,
+      error: error,
+      level: Level.SEVERE.value,
+      stackTrace: StackTrace.current,
+    );
+    return Future.error(gtError);
   }
 
   /// Set the base url for the applications backend calls
@@ -354,6 +383,117 @@ class GtApi {
       );
       log(gtError.cause, error: error, level: Level.SEVERE.value);
       throw gtError;
+    }
+  }
+
+  Future<List<TodoList>> getLists() async {
+    if (!_hasBaseUrl()) {
+      final error = Exception('BaseUrl not set');
+      log('App has no baseUrl', level: Level.SEVERE.value, error: error);
+      throw error;
+    }
+
+    try {
+      var response = await http.get(
+        Uri.parse('$baseUrl/list/'),
+        headers: {'Authorization': 'Bearer $accessJWT'},
+      );
+
+      if (response.statusCode != 200) {
+        _handleErrorStatus(response, map: {});
+      }
+
+      var data = jsonDecode(response.body);
+      var todoLists = (data['lists'] as List<dynamic>)
+          .map((list) => TodoList.fromJson(list as Map<String, dynamic>))
+          .toList();
+      return todoLists;
+    } on GtApiException catch (_) {
+      rethrow;
+    } on SocketException catch (error) {
+      final gtError = GtApiException(
+        cause: 'Could not connect to $baseUrl',
+        type: GtApiExceptionType.hostNotResponding,
+      );
+      log(gtError.cause, error: error, level: Level.SEVERE.value);
+      throw gtError;
+    } catch (error) {
+      final gtError = GtApiException(
+        cause: 'Unknown error happened while getting lists.',
+        type: GtApiExceptionType.unknown,
+      );
+      log(gtError.cause,
+          error: error,
+          level: Level.SEVERE.value,
+          stackTrace: StackTrace.current);
+      throw gtError;
+    }
+  }
+
+  Future<TodoList> createList(
+      {required String title, String? description}) async {
+    if (!_hasBaseUrl()) {
+      final error = Exception('BaseUrl not set');
+      log('App has no baseUrl', level: Level.SEVERE.value, error: error);
+      throw error;
+    }
+    Map<String, String> reqBody = {'title': title};
+    if (description != null) reqBody['description'] = description;
+
+    try {
+      var response = await http.post(
+        Uri.parse('$baseUrl/list/'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $accessJWT'
+        },
+        body: jsonEncode(reqBody),
+      );
+
+      // 201 if list was created
+      // 400 if title is empty, too long or descritpion is too long
+      // 401 if accessJWT is invalid
+      // 500 for multiple reasons
+      if (response.statusCode != 201) {
+        _handleErrorStatus(response, map: {});
+      }
+
+      var data = jsonDecode(response.body);
+      return TodoList.fromJson(data['list'] as Map<String, dynamic>);
+    } on GtApiException catch (error) {
+      return Future.error(error);
+    } on SocketException catch (error) {
+      return _handleSocketException(error);
+    } catch (error) {
+      return _handleUnknownError(error);
+    }
+  }
+
+  Future<void> deleteList(String listId) async {
+    if (!_hasBaseUrl()) {
+      final error = Exception('BaseUrl not set');
+      log('App has no baseUrl', level: Level.SEVERE.value, error: error);
+      throw error;
+    }
+
+    try {
+      var response = await http.delete(
+        Uri.parse('$baseUrl/list/$listId'),
+        headers: {'Authorization': 'Bearer $accessJWT'},
+      );
+
+      // 204 if list was deleted
+      // 401 for unauthorized access
+      // 500 for multiple reasons
+      if (response.statusCode != 204) {
+        _handleErrorStatus(response, map: {});
+      }
+    } on GtApiException catch (error) {
+      return Future.error(error);
+    } on SocketException catch (error) {
+      return _handleSocketException(error);
+    } catch (error) {
+      return _handleUnknownError(error);
     }
   }
 }

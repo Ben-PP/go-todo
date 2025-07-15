@@ -7,6 +7,8 @@ package db
 
 import (
 	"context"
+
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const createList = `-- name: CreateList :one
@@ -16,10 +18,10 @@ RETURNING id, user_id, title, description, created_at, updated_at
 `
 
 type CreateListParams struct {
-	ID          string `json:"id"`
-	UserID      string `json:"user_id"`
-	Title       string `json:"title"`
-	Description string `json:"description"`
+	ID          string      `json:"id"`
+	UserID      string      `json:"user_id"`
+	Title       string      `json:"title"`
+	Description pgtype.Text `json:"description"`
 }
 
 func (q *Queries) CreateList(ctx context.Context, arg CreateListParams) (List, error) {
@@ -253,9 +255,9 @@ RETURNING id, user_id, title, description, created_at, updated_at
 `
 
 type UpdateListParams struct {
-	Title       string `json:"title"`
-	Description string `json:"description"`
-	ID          string `json:"id"`
+	Title       string      `json:"title"`
+	Description pgtype.Text `json:"description"`
+	ID          string      `json:"id"`
 }
 
 func (q *Queries) UpdateList(ctx context.Context, arg UpdateListParams) (List, error) {
