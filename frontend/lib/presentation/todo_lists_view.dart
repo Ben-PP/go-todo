@@ -139,6 +139,11 @@ class _TodoListsViewState extends ConsumerState<TodoListsView> {
                         }
                         return l.todos.isNotEmpty;
                       }),
+                      afterDelete: () {
+                        setState(() {
+                          selectedListId = null;
+                        });
+                      },
                     ),
                   ),
               ],

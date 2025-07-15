@@ -24,4 +24,11 @@ class TodoList extends _$TodoList {
     );
     state = AsyncData([...state.value ?? [], newList]);
   }
+
+  Future<void> deleteList(String listId) async {
+    await GtApi().deleteList(listId);
+    state = AsyncData(
+      (state.value ?? []).where((list) => list.id != listId).toList(),
+    );
+  }
 }

@@ -468,6 +468,34 @@ class GtApi {
       return _handleUnknownError(error);
     }
   }
+
+  Future<void> deleteList(String listId) async {
+    if (!_hasBaseUrl()) {
+      final error = Exception('BaseUrl not set');
+      log('App has no baseUrl', level: Level.SEVERE.value, error: error);
+      throw error;
+    }
+
+    try {
+      var response = await http.delete(
+        Uri.parse('$baseUrl/list/$listId'),
+        headers: {'Authorization': 'Bearer $accessJWT'},
+      );
+
+      // 204 if list was deleted
+      // 401 for unauthorized access
+      // 500 for multiple reasons
+      if (response.statusCode != 204) {
+        _handleErrorStatus(response, map: {});
+      }
+    } on GtApiException catch (error) {
+      return Future.error(error);
+    } on SocketException catch (error) {
+      return _handleSocketException(error);
+    } catch (error) {
+      return _handleUnknownError(error);
+    }
+  }
 }
 
 enum GtApiExceptionType {

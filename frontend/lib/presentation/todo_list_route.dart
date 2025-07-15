@@ -13,7 +13,10 @@ class TodoListRoute extends StatelessWidget {
     return RouteScaffold(
       implyLeading: true,
       showDrawer: false,
-      body: TodoView(todoList: todoList),
+      body: TodoView(
+        todoList: todoList,
+        afterDelete: () => Navigator.of(context).pop(),
+      ),
     );
   }
 }
